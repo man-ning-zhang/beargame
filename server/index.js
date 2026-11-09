@@ -247,11 +247,11 @@ function leaveCurrentRoom(ws, reason, now = Date.now()) {
     return;
   }
   const player = room.seats[seat];
-  const name = player?.name ?? '有人';
+  const name = player?.name ?? '🐻';
   if (vacateSeat(room, seat, now)) {
     const otherSeat = seat === 'host' ? 'guest' : 'host';
     if (room.seats[otherSeat]) {
-      systemChat(room, reason === 'leave' ? `${name} 先离开啦，小熊会等 TA 回来。` : `${name} 的小位置空出来了。`, now);
+      systemChat(room, reason === 'leave' ? 'leave' : 'expired', { name }, now);
     }
     broadcast(room);
   }
@@ -315,7 +315,7 @@ function handleJoin(ws, msg) {
 
 function handleMessage(ws, raw) {
   if (!allowSocketMessage(ws)) {
-    send(ws, { type: 'toast', message: '慢一点点，小熊有点晕。' });
+    send(ws, { type: 'toast', code: 'socket_slow' });
     return;
   }
 
@@ -370,7 +370,7 @@ function handleMessage(ws, raw) {
       broadcast(room);
     } else if (result.error === 'cooldown') {
       const wait = Math.max(1, Math.ceil((result.readyAt - now) / 1000));
-      send(ws, { type: 'toast', message: `小熊还没缓过来，再等 ${wait} 秒。` });
+      send(ws, { type: 'toast', code: 'action_cooldown', wait });
     }
     return;
   }
@@ -380,7 +380,7 @@ function handleMessage(ws, raw) {
     if (result.ok) {
       broadcast(room);
     } else if (result.error === 'slow') {
-      send(ws, { type: 'toast', message: '说慢一点，小熊在认真听。' });
+      send(ws, { type: 'toast', code: 'chat_slow' });
     }
     return;
   }
@@ -390,9 +390,9 @@ function handleMessage(ws, raw) {
     if (result.ok) {
       broadcast(room);
     } else if (result.error === 'waiting') {
-      send(ws, { type: 'toast', message: '等 TA 回到小屋，才能一起下棋。' });
+      send(ws, { type: 'toast', code: 'game_waiting' });
     } else if (result.error === 'not_turn') {
-      send(ws, { type: 'toast', message: '还没轮到你哦。' });
+      send(ws, { type: 'toast', code: 'game_not_turn' });
     }
     return;
   }
@@ -402,7 +402,7 @@ function handleMessage(ws, raw) {
     if (result.ok) {
       broadcast(room);
     } else if (result.error === 'in_progress') {
-      send(ws, { type: 'toast', message: '这局还没结束呢。' });
+      send(ws, { type: 'toast', code: 'game_in_progress' });
     }
   }
 }
@@ -475,7 +475,7 @@ const cleanupTimer = setInterval(() => {
       }
     }
     if (changed) {
-      systemChat(room, '等了一会儿，TA 的小位置空出来了。', now);
+      systemChat(room, 'expired', {}, now);
       broadcast(room);
     }
     if (!room.seats.host && !room.seats.guest && now - room.lastActive > ROOM_TTL_MS) {

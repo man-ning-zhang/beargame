@@ -1,6 +1,7 @@
 import React from 'react';
 import styled, { keyframes } from 'styled-components';
 import { useRoom } from '../context/RoomContext';
+import { useI18n } from '../context/LanguageContext';
 import { palette, shadows } from '../theme';
 
 const pop = keyframes`
@@ -35,11 +36,12 @@ const Bear = styled.span`
 
 export default function Toast() {
   const { toast } = useRoom();
+  const { t } = useI18n();
   if (!toast) return null;
   return (
     <ToastRoot role="status" aria-live="polite">
       <Bear aria-hidden="true">🐻</Bear>
-      <span>{toast.message}</span>
+      <span>{t(toast.key, toast.params)}</span>
     </ToastRoot>
   );
 }

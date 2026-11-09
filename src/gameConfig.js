@@ -2,40 +2,38 @@ export const ACTIONS = [
   {
     id: 'feed',
     icon: '🍯',
-    label: '喂蜂蜜',
-    effect: '饱腹 +26',
+    labelKey: 'action.feed.label',
+    effectKey: 'action.feed.effect',
     tone: 'amber',
     cooldown: 10,
   },
   {
     id: 'play',
     icon: '🧶',
-    label: '玩毛线',
-    effect: '心情 +20',
+    labelKey: 'action.play.label',
+    effectKey: 'action.play.effect',
     tone: 'coral',
     cooldown: 14,
   },
   {
     id: 'hug',
     icon: '🫂',
-    label: '抱一抱',
-    effect: '亲密 +4',
+    labelKey: 'action.hug.label',
+    effectKey: 'action.hug.effect',
     tone: 'pink',
     cooldown: 25,
   },
   {
     id: 'sleep',
     icon: '🌙',
-    label: '哄它睡',
-    effect: '精力 +35',
+    labelKey: 'action.sleep.label',
+    effectKey: 'action.sleep.effect',
     tone: 'sky',
     cooldown: 60,
   },
 ];
 
 export const QUICK_EMOJIS = ['❤️', '😘', '🐻', '✨', '🥺', '😴'];
-
-export const ACTION_LABELS = Object.fromEntries(ACTIONS.map((action) => [action.id, action]));
 
 export function symbolFor(seat) {
   return seat === 'host' ? 'X' : 'O';
@@ -47,7 +45,7 @@ export function otherSeat(seat) {
 
 export function formatClock(timestamp) {
   try {
-    return new Intl.DateTimeFormat('zh-CN', {
+    return new Intl.DateTimeFormat('en-GB', {
       hour: '2-digit',
       minute: '2-digit',
       hour12: false,

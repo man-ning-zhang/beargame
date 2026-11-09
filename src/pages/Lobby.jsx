@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import styled, { keyframes } from 'styled-components';
 import Bear from '../components/Bear';
+import LanguageToggle from '../components/LanguageToggle';
+import { useI18n } from '../context/LanguageContext';
 import { useRoom } from '../context/RoomContext';
 import { breakpoints, fonts, palette, shadows } from '../theme';
 
@@ -21,57 +23,35 @@ const spin = keyframes`
 const Page = styled.div`
   position: relative;
   z-index: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - 48px);
   padding: 10px 0 40px;
   animation: ${fadeUp} 0.55s ease-out both;
+
+  @media (max-width: ${breakpoints.medium}) {
+    min-height: calc(100dvh - 32px);
+  }
 `;
 
 const TopBar = styled.header`
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 16px;
-  margin-bottom: clamp(24px, 7vh, 76px);
+  margin-bottom: clamp(20px, 5vh, 52px);
 
   @media (max-width: ${breakpoints.medium}) {
-    margin-bottom: 20px;
+    margin-bottom: 18px;
   }
 `;
 
-const Brand = styled.div`
+const TopActions = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
-  color: ${palette.cream};
-`;
-
-const BrandMark = styled.div`
-  display: grid;
-  place-items: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 14px;
-  background: linear-gradient(145deg, #f4c36a, #e8795f);
-  font-size: 22px;
-  box-shadow: 0 10px 24px -12px rgba(232, 121, 95, 0.8);
-`;
-
-const BrandText = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-`;
-
-const BrandName = styled.span`
-  font-family: ${fonts.display};
-  font-size: 17px;
-  letter-spacing: 0.06em;
-`;
-
-const BrandSub = styled.span`
-  font-size: 10px;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: rgba(255, 248, 236, 0.5);
+  justify-content: flex-end;
+  gap: 9px;
+  flex-wrap: wrap;
 `;
 
 const Connection = styled.div`
@@ -97,8 +77,10 @@ const Dot = styled.span`
 
 const Grid = styled.div`
   display: grid;
+  flex: 1;
   grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.92fr);
   align-items: center;
+  align-content: center;
   gap: clamp(28px, 6vw, 84px);
 
   @media (max-width: ${breakpoints.wide}) {
@@ -113,93 +95,25 @@ const Hero = styled.section`
   padding: 8px 0;
 `;
 
-const Eyebrow = styled.p`
-  margin: 0 0 18px;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 10px;
-  letter-spacing: 0.28em;
-  text-transform: uppercase;
-  color: ${palette.amber};
-
-  &::before {
-    content: '';
-    width: 28px;
-    height: 1px;
-    background: currentColor;
-    opacity: 0.6;
-  }
-`;
-
 const Title = styled.h1`
   margin: 0;
   font-family: ${fonts.display};
-  font-size: clamp(46px, 8vw, 82px);
-  line-height: 1.02;
-  letter-spacing: 0.02em;
+  font-size: clamp(46px, 5.8vw, 78px);
+  line-height: 0.98;
+  letter-spacing: -0.015em;
   font-weight: 600;
-
-  span {
-    display: block;
-    color: ${palette.amber};
-    font-size: 0.4em;
-    letter-spacing: 0.1em;
-    margin-top: 16px;
-    font-family: ${fonts.body};
-    font-weight: 400;
-  }
+  color: ${palette.cream};
+  white-space: nowrap;
 
   @media (max-width: ${breakpoints.medium}) {
-    font-size: clamp(42px, 13vw, 64px);
-
-    span {
-      font-size: 0.38em;
-      letter-spacing: 0.06em;
-      margin-top: 10px;
-    }
+    font-size: clamp(40px, 11.5vw, 56px);
   }
-`;
-
-const Lede = styled.p`
-  max-width: 440px;
-  margin: 22px 0 0;
-  color: rgba(255, 248, 236, 0.68);
-  font-size: 15px;
-  line-height: 1.9;
-
-  @media (max-width: ${breakpoints.medium}) {
-    font-size: 13.5px;
-    line-height: 1.75;
-    margin-top: 16px;
-  }
-`;
-
-const Chips = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 24px;
-
-  @media (max-width: ${breakpoints.medium}) {
-    margin-top: 16px;
-  }
-`;
-
-const Chip = styled.span`
-  padding: 7px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 248, 236, 0.12);
-  background: rgba(255, 248, 236, 0.04);
-  color: rgba(255, 248, 236, 0.72);
-  font-size: 11px;
-  letter-spacing: 0.04em;
 `;
 
 const BearStage = styled.div`
   position: relative;
-  margin-top: 30px;
-  width: min(330px, 86%);
+  margin-top: clamp(18px, 4vh, 36px);
+  width: min(340px, 88%);
 
   @media (max-width: ${breakpoints.medium}) {
     display: none;
@@ -221,39 +135,6 @@ const BearFloat = styled.div`
   position: relative;
   animation: ${float} 5.6s ease-in-out infinite;
   padding: 6px 0 0;
-`;
-
-const Speech = styled.div`
-  position: absolute;
-  top: 7%;
-  right: -6%;
-  max-width: 168px;
-  padding: 10px 14px;
-  border-radius: 16px 16px 16px 4px;
-  background: ${palette.cream};
-  color: ${palette.ink};
-  font-size: 12px;
-  line-height: 1.5;
-  box-shadow: ${shadows.soft};
-
-  @media (max-width: ${breakpoints.medium}) {
-    right: 0;
-    top: 0;
-    max-width: 140px;
-    font-size: 11px;
-  }
-
-  &::after {
-    content: '';
-    position: absolute;
-    left: 14px;
-    bottom: -7px;
-    width: 14px;
-    height: 14px;
-    background: ${palette.cream};
-    transform: rotate(45deg);
-    border-radius: 2px;
-  }
 `;
 
 const Card = styled.section`
@@ -508,6 +389,7 @@ const Notice = styled.div`
   border: 1px solid ${(props) => (props.$error ? 'rgba(232, 121, 95, 0.22)' : 'rgba(127, 174, 139, 0.28)')};
   color: ${(props) => (props.$error ? '#a44734' : '#4f7a5c')};
   font-size: 12.5px;
+  font-weight: 500;
   line-height: 1.55;
   animation: ${fadeUp} 0.25s ease-out both;
 `;
@@ -539,6 +421,7 @@ export default function Lobby() {
   const [localError, setLocalError] = useState('');
   const nameRef = useRef(null);
   const codeRef = useRef(null);
+  const { t } = useI18n();
 
   const busy = status === 'joining' || status === 'reconnecting';
   const message = localError || notice;
@@ -554,7 +437,7 @@ export default function Lobby() {
 
   const validateName = () => {
     if (!name.trim()) {
-      setLocalError('先告诉小熊你的名字吧。');
+      setLocalError('error.nameRequired');
       nameRef.current?.focus();
       return false;
     }
@@ -574,12 +457,12 @@ export default function Lobby() {
     if (busy) return;
     if (!validateName()) return;
     if (code.trim().length < 4) {
-      setLocalError('房间号是 4 位字母或数字，再检查一下？');
+      setLocalError('error.codeRequired');
       codeRef.current?.focus();
       return;
     }
     if (!joinRoom(code, name)) {
-      setLocalError('房间号看起来不太对，再检查一下？');
+      setLocalError('error.codeInvalid');
       codeRef.current?.focus();
     }
   };
@@ -595,61 +478,43 @@ export default function Lobby() {
   return (
     <Page>
       <TopBar>
-        <Brand>
-          <BrandMark aria-hidden="true">🐻</BrandMark>
-          <BrandText>
-            <BrandName>Bear Together</BrandName>
-            <BrandSub>A tiny world for two</BrandSub>
-          </BrandText>
-        </Brand>
-        <Connection>
-          <Dot $online={connected} />
-          {connected ? '小屋服务在线' : '正在连接小屋…'}
-        </Connection>
+        <TopActions>
+          <Connection>
+            <Dot $online={connected} />
+            {connected ? t('lobby.connection.online') : t('lobby.connection.connecting')}
+          </Connection>
+          <LanguageToggle />
+        </TopActions>
       </TopBar>
 
       <Grid>
         <Hero>
-          <Eyebrow>For the two of you</Eyebrow>
-          <Title>
-            一起养只熊
-            <span>隔着屏幕，也住进同一间小屋</span>
-          </Title>
-          <Lede>
-            开一间只有你们两个人的房间。喂它、陪它、摸摸它的头，
-            也把今天想说的话，留在同一片夜色里。
-          </Lede>
-          <Chips>
-            <Chip>实时同步</Chip>
-            <Chip>只有两个人</Chip>
-            <Chip>断线也能回来</Chip>
-          </Chips>
+          <Title>Bear Together</Title>
 
           <BearStage>
             <Moon />
             <BearFloat>
               <Bear stats={{ mood: 88, fullness: 82, energy: 76 }} />
             </BearFloat>
-            <Speech>今天也一起照顾我吧。</Speech>
           </BearStage>
         </Hero>
 
         <Card>
           <CardHead>
             <div>
-              <CardTitle>推门进来</CardTitle>
-              <CardSub>取一个名字，小熊会记住你。</CardSub>
+              <CardTitle>{t('lobby.card.title')}</CardTitle>
+              <CardSub>{t('lobby.card.sub')}</CardSub>
             </div>
-            <Badge>2 players</Badge>
+            <Badge>{t('lobby.badge')}</Badge>
           </CardHead>
 
-          {message && <Notice $error>{message}</Notice>}
+          {message && <Notice $error>{t(message)}</Notice>}
 
           <form onSubmit={handleCreate}>
             <Field>
               <LabelRow>
-                <span>你的名字</span>
-                <Hint>最多 12 个字</Hint>
+                <span>{t('lobby.name.label')}</span>
+                <Hint>{t('lobby.name.hint')}</Hint>
               </LabelRow>
               <Input
                 ref={nameRef}
@@ -658,21 +523,21 @@ export default function Lobby() {
                   setName(event.target.value);
                   clearError();
                 }}
-                placeholder="比如：小满"
+                placeholder={t('lobby.name.placeholder')}
                 maxLength={12}
                 autoComplete="nickname"
                 disabled={busy}
-                aria-label="你的名字"
+                aria-label={t('lobby.name.aria')}
               />
             </Field>
 
             <Primary type="submit" disabled={busy}>
               {busy ? <Spinner aria-hidden="true" /> : <span aria-hidden="true">✨</span>}
-              {busy ? '正在推开小屋的门…' : '开一间两个人的小屋'}
+              {busy ? t('lobby.createBusy') : t('lobby.create')}
             </Primary>
           </form>
 
-          <Divider>或者，去 TA 的小屋</Divider>
+          <Divider>{t('lobby.divider')}</Divider>
 
           <JoinRow>
             <CodeInput
@@ -695,24 +560,24 @@ export default function Lobby() {
               spellCheck={false}
               maxLength={4}
               disabled={busy}
-              aria-label="四位房间号"
+              aria-label={t('lobby.code.aria')}
             />
             <JoinButton type="button" onClick={handleJoin} disabled={busy || code.length < 4}>
-              加入
+              {t('lobby.join')}
             </JoinButton>
           </JoinRow>
 
           {lastRoom && (
             <LastRoom type="button" onClick={handleLastRoom} disabled={busy}>
               <span aria-hidden="true">↩</span>
-              <span>回到上次的小屋 · {lastRoom}</span>
+              <span>{t('lobby.lastRoom', { code: lastRoom })}</span>
             </LastRoom>
           )}
 
           <FootNote>
-            房间号就是钥匙，只有你们两个人。
+            {t('lobby.foot1')}
             <br />
-            不需要注册，也不用一直开着页面。
+            {t('lobby.foot2')}
           </FootNote>
         </Card>
       </Grid>

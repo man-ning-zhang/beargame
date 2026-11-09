@@ -2,6 +2,7 @@ import React from 'react';
 import styled, { css, keyframes } from 'styled-components';
 import { initialOf, otherSeat, symbolFor } from '../gameConfig';
 import { breakpoints, palette } from '../theme';
+import { useI18n } from '../context/LanguageContext';
 
 const markIn = keyframes`
   0% { opacity: 0; transform: scale(0.5) rotate(-8deg); }
@@ -309,6 +310,7 @@ function Mark({ value }) {
 }
 
 export default function GamePanel({ room, me, connected, onMove, onRematch }) {
+  const { t } = useI18n();
   const game = room.game;
   const partnerSeat = otherSeat(me);
   const partner = room.players?.[partnerSeat];
@@ -323,37 +325,37 @@ export default function GamePanel({ room, me, connected, onMove, onRematch }) {
   const draw = game.winner === 'draw';
 
   const statusText = () => {
-    if (iWon) return '你赢啦，去讨一个晚安故事吧 🎉';
-    if (partnerWon) return 'TA 赢啦，这局算 TA 的';
-    if (draw) return '平局，谁也没让着谁';
-    if (!partner) return '等 TA 推门进来，才能开局';
-    if (!partner.online) return '等 TA 回到小屋，棋局先留在这里';
-    if (myTurn) return `轮到你落子 · 你是 ${mySymbol}`;
-    return `等 TA 落子 · TA 是 ${symbolFor(partnerSeat)}`;
+    if (iWon) return t('game.status.win');
+    if (partnerWon) return t('game.status.lose');
+    if (draw) return t('game.status.draw');
+    if (!partner) return t('game.status.noPartner');
+    if (!partner.online) return t('game.status.offline');
+    if (myTurn) return t('game.status.myTurn', { symbol: mySymbol });
+    return t('game.status.theirTurn', { symbol: symbolFor(partnerSeat) });
   };
 
   return (
     <Wrap>
       <Head>
         <div>
-          <Title>三子连珠</Title>
-          <Sub>井字棋 · 输的人负责明天的早餐</Sub>
+          <Title>{t('game.title')}</Title>
+          <Sub>{t('game.sub')}</Sub>
         </div>
-        <Round>第 {game.round} 局</Round>
+        <Round>{t('game.round', { round: game.round })}</Round>
       </Head>
 
       <Scoreboard>
         <Player>
           <Avatar $color="#d9785f">{initialOf(room.players?.[me]?.name)}</Avatar>
           <div>
-            <div className="name">你 · {mySymbol}</div>
+            <div className="name">{t('game.scoreYou', { symbol: mySymbol })}</div>
             <Score $me>{myScore}</Score>
           </div>
         </Player>
         <Colon>:</Colon>
         <Player>
           <div style={{ textAlign: 'right' }}>
-            <div className="name">{partner?.name || 'TA'} · {symbolFor(partnerSeat)}</div>
+            <div className="name">{t('game.scorePartner', { name: partner?.name || t('game.partner'), symbol: symbolFor(partnerSeat) })}</div>
             <Score>{theirScore}</Score>
           </div>
           <Avatar $color="#7f9fbf">{initialOf(partner?.name)}</Avatar>
@@ -361,7 +363,7 @@ export default function GamePanel({ room, me, connected, onMove, onRematch }) {
       </Scoreboard>
 
       <BoardWrap>
-        <Board role="grid" aria-label="井字棋棋盘">
+        <Board role="grid" aria-label={t('game.board')}>
           {game.board.map((value, index) => {
             const winning = game.line.includes(index);
             const last = game.lastMove?.index === index;
@@ -376,9 +378,15 @@ export default function GamePanel({ room, me, connected, onMove, onRematch }) {
                 $playable={canPlay}
                 onClick={() => onMove(index)}
                 disabled={!canPlay}
-                aria-label={`第 ${Math.floor(index / 3) + 1} 行第 ${(index % 3) + 1} 列${
-                  value ? `，${value}` : ''
-                }`}
+                aria-label={
+                  value
+                    ? t('game.cellMarked', {
+                        row: Math.floor(index / 3) + 1,
+                        col: (index % 3) + 1,
+                        mark: value,
+                      })
+                    : t('game.cell', { row: Math.floor(index / 3) + 1, col: (index % 3) + 1 })
+                }
               >
                 <Mark value={value} />
               </Cell>
@@ -387,8 +395,8 @@ export default function GamePanel({ room, me, connected, onMove, onRematch }) {
         </Board>
         {!bothHere && (
           <Waiting>
-            <strong>棋盘在等另一个人</strong>
-            <small>{partner ? 'TA 暂时离开了小屋' : '把房间号发给 TA 吧'}</small>
+            <strong>{t('game.waiting.title')}</strong>
+            <small>{partner ? t('game.waiting.away') : t('game.waiting.noPartner')}</small>
           </Waiting>
         )}
       </BoardWrap>
@@ -398,14 +406,14 @@ export default function GamePanel({ room, me, connected, onMove, onRematch }) {
       </Status>
 
       <Footer>
-        <Note>三子连珠就赢。赢的人，可以点一首晚安曲。</Note>
+        <Note>{t('game.note')}</Note>
         {game.winner ? (
           <Rematch type="button" onClick={onRematch} disabled={!connected || !bothHere}>
-            再来一局
+            {t('game.rematch')}
           </Rematch>
         ) : (
           <Rematch type="button" disabled>
-            对局中
+            {t('game.inProgress')}
           </Rematch>
         )}
       </Footer>

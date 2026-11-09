@@ -6,6 +6,7 @@ import GamePanel from '../components/GamePanel';
 import RoomHeader from '../components/RoomHeader';
 import Scene from '../components/Scene';
 import { useRoom } from '../context/RoomContext';
+import { useI18n } from '../context/LanguageContext';
 import { playSound } from '../utils/sound';
 import { breakpoints, palette, shadows } from '../theme';
 
@@ -191,6 +192,7 @@ export default function RoomPage() {
     makeMove,
     rematch,
   } = useRoom();
+  const { t } = useI18n();
 
   const [tab, setTab] = useState('chat');
   const [reaction, setReaction] = useState(null);
@@ -274,7 +276,7 @@ export default function RoomPage() {
 
       {reconnecting && (
         <Banner role="status">
-          正在重新连回小屋，别担心，小熊会等你们。
+          {t('room.reconnectBanner')}
         </Banner>
       )}
 
@@ -298,7 +300,7 @@ export default function RoomPage() {
 
         <Side>
           <SideCard>
-            <Tabs role="tablist" aria-label="小屋功能区">
+            <Tabs role="tablist" aria-label={t('tabs.aria')}>
               <Tab
                 type="button"
                 role="tab"
@@ -309,7 +311,7 @@ export default function RoomPage() {
                 <span className="icon" aria-hidden="true">
                   💬
                 </span>
-                悄悄话
+                {t('tabs.chat')}
                 {unread > 0 && <Badge>{unread > 9 ? '9+' : unread}</Badge>}
               </Tab>
               <Tab
@@ -322,7 +324,7 @@ export default function RoomPage() {
                 <span className="icon" aria-hidden="true">
                   🎲
                 </span>
-                一起玩
+                {t('tabs.game')}
               </Tab>
             </Tabs>
 
@@ -347,15 +349,15 @@ export default function RoomPage() {
           </SideCard>
 
           <AsideNote>
-            房间号 {room.code} 就是你们的钥匙。
+            {t('room.aside1', { code: room.code })}
             <br />
-            两个人都离开后，它会安静地等你们回来。
+            {t('room.aside2')}
           </AsideNote>
         </Side>
 
         <Foot style={{ gridColumn: '1 / -1' }}>
           <span>🐻 Bear Together</span>
-          <span>为两个人做的小屋 · 不需要注册</span>
+          <span>{t('room.footerNote')}</span>
         </Foot>
       </Grid>
     </Page>

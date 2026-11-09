@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { initialOf, formatClock, otherSeat, QUICK_EMOJIS } from '../gameConfig';
+import { useI18n } from '../context/LanguageContext';
 import { breakpoints, palette } from '../theme';
 
 const rise = keyframes`
@@ -339,6 +340,7 @@ const Hint = styled.p`
 `;
 
 export default function ChatPanel({ room, me, connected, onSend }) {
+  const { t } = useI18n();
   const [text, setText] = useState('');
   const listRef = useRef(null);
   const inputRef = useRef(null);
@@ -372,29 +374,33 @@ export default function ChatPanel({ room, me, connected, onSend }) {
     <Wrap>
       <Head>
         <div>
-          <Title>悄悄话</Title>
-          <Sub>只有你们两个人看得到</Sub>
+          <Title>{t('chat.title')}</Title>
+          <Sub>{t('chat.sub')}</Sub>
         </div>
         <Presence $online={Boolean(partner?.online)}>
-          {partner ? (partner.online ? 'TA 在线' : 'TA 暂时离开') : '等 TA 进来'}
+          {partner
+            ? partner.online
+              ? t('chat.presence.online')
+              : t('chat.presence.away')
+            : t('chat.presence.waiting')}
         </Presence>
       </Head>
 
-      <Messages ref={listRef} aria-live="polite" aria-label="聊天消息">
+      <Messages ref={listRef} aria-live="polite" aria-label={t('chat.messages')}>
         {messages.length === 0 ? (
           <Empty>
             <span className="bear" aria-hidden="true">
               🐻
             </span>
-            <p>这里还很安静。</p>
-            <small>说一句“晚安”，或者先摸摸小熊。</small>
+            <p>{t('chat.empty.title')}</p>
+            <small>{t('chat.empty.body')}</small>
           </Empty>
         ) : (
           messages.map((message) => {
             if (message.kind === 'system') {
               return (
                 <SystemRow key={message.id}>
-                  <SystemPill>{message.text}</SystemPill>
+                  <SystemPill>{t(`system.${message.event || 'generic'}`, message.data || {})}</SystemPill>
                 </SystemRow>
               );
             }
@@ -427,22 +433,22 @@ export default function ChatPanel({ room, me, connected, onSend }) {
             <span className="bear" aria-hidden="true">
               🐻
             </span>
-            <p>还没有悄悄话。</p>
-            <small>先打个招呼，或者发一个表情给 TA。</small>
+            <p>{t('chat.inline.title')}</p>
+            <small>{t('chat.inline.body')}</small>
           </Empty>
         )}
       </Messages>
 
       <Composer onSubmit={handleSubmit}>
         <EmojiRow>
-          <span className="label">快速回应</span>
+          <span className="label">{t('chat.quick')}</span>
           {QUICK_EMOJIS.map((emoji) => (
             <EmojiButton
               key={emoji}
               type="button"
               onClick={() => sendEmote(emoji)}
               disabled={!connected}
-              aria-label={`发送 ${emoji}`}
+              aria-label={t('chat.emoji', { emoji })}
             >
               {emoji}
             </EmojiButton>
@@ -453,16 +459,16 @@ export default function ChatPanel({ room, me, connected, onSend }) {
             ref={inputRef}
             value={text}
             onChange={(event) => setText(event.target.value)}
-            placeholder={connected ? '和 TA 说点什么…' : '正在重新连接…'}
+            placeholder={connected ? t('chat.placeholder') : t('chat.placeholderOffline')}
             maxLength={120}
             disabled={!connected}
-            aria-label="聊天输入框"
+            aria-label={t('chat.input')}
           />
-          <Send type="submit" disabled={!connected || !text.trim()} aria-label="发送消息">
+          <Send type="submit" disabled={!connected || !text.trim()} aria-label={t('chat.send')}>
             ↑
           </Send>
         </InputRow>
-        <Hint>按 Enter 发送 · 一次最多 120 个字</Hint>
+        <Hint>{t('chat.hint')}</Hint>
       </Composer>
     </Wrap>
   );

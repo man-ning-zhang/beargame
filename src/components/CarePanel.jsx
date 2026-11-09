@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { ACTIONS } from '../gameConfig';
+import { useI18n } from '../context/LanguageContext';
 import { breakpoints, palette, shadows } from '../theme';
 
 const slide = keyframes`
@@ -319,6 +320,7 @@ const ActionButton = styled.button`
 `;
 
 export default function CarePanel({ room, connected, clockOffset, onAction }) {
+  const { t } = useI18n();
   const [now, setNow] = useState(() => Date.now() + clockOffset);
 
   useEffect(() => {
@@ -328,11 +330,14 @@ export default function CarePanel({ room, connected, clockOffset, onAction }) {
   }, [clockOffset]);
 
   const latest = room.log?.[0];
+  const latestText = latest
+    ? t('care.log', { name: latest.name, verb: t(`action.${latest.action}.verb`) })
+    : t('care.defaultLog');
   const stats = [
     {
       id: 'fullness',
       icon: '🍯',
-      label: '饱腹',
+      labelKey: 'care.stat.fullness',
       value: room.stats.fullness,
       color: palette.amber,
       glow: 'rgba(241,185,79,0.4)',
@@ -340,7 +345,7 @@ export default function CarePanel({ room, connected, clockOffset, onAction }) {
     {
       id: 'mood',
       icon: '💛',
-      label: '心情',
+      labelKey: 'care.stat.mood',
       value: room.stats.mood,
       color: palette.coral,
       glow: 'rgba(232,121,95,0.35)',
@@ -348,7 +353,7 @@ export default function CarePanel({ room, connected, clockOffset, onAction }) {
     {
       id: 'energy',
       icon: '🌙',
-      label: '精力',
+      labelKey: 'care.stat.energy',
       value: room.stats.energy,
       color: palette.sky,
       glow: 'rgba(143,182,217,0.35)',
@@ -359,10 +364,10 @@ export default function CarePanel({ room, connected, clockOffset, onAction }) {
     <Panel>
       <Head>
         <div>
-          <Title>今天的小熊</Title>
-          <Sub>你们离开时它会打盹，所以不用太担心。</Sub>
+          <Title>{t('care.title')}</Title>
+          <Sub>{t('care.sub')}</Sub>
         </div>
-        <Bonus $on={room.together}>{room.together ? '✦ 陪伴加成' : '· 慢慢陪伴'}</Bonus>
+        <Bonus $on={room.together}>{room.together ? `✦ ${t('care.bonus')}` : `· ${t('care.bonusOff')}`}</Bonus>
       </Head>
 
       <StatsGrid>
@@ -371,7 +376,7 @@ export default function CarePanel({ room, connected, clockOffset, onAction }) {
             <StatTop>
               <StatName>
                 <span aria-hidden="true">{stat.icon}</span>
-                {stat.label}
+                {t(stat.labelKey)}
               </StatName>
               <Value $color={stat.color}>
                 {Math.round(stat.value)}
@@ -380,7 +385,7 @@ export default function CarePanel({ room, connected, clockOffset, onAction }) {
             </StatTop>
             <Track
               role="progressbar"
-              aria-label={stat.label}
+              aria-label={t(stat.labelKey)}
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={Math.round(stat.value)}
@@ -394,15 +399,17 @@ export default function CarePanel({ room, connected, clockOffset, onAction }) {
       <BondRow>
         <BondHead>
           <span>
-            亲密度 · <strong>{room.bond.name}</strong>
+            {t('bond.label')} · <strong>{t(`bond.level.${room.bond.level}`)}</strong>
           </span>
           <em>
-            {room.bond.next ? `${room.bond.points} / ${room.bond.next}` : `${room.bond.points} · 满格`}
+            {room.bond.next
+              ? t('bond.points', { points: room.bond.points, next: room.bond.next })
+              : t('bond.max', { points: room.bond.points })}
           </em>
         </BondHead>
         <BondTrack
           role="progressbar"
-          aria-label={`亲密度 ${room.bond.name}`}
+          aria-label={`${t('bond.label')} ${t(`bond.level.${room.bond.level}`)}`}
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={Math.round(room.bond.progress * 100)}
@@ -415,12 +422,12 @@ export default function CarePanel({ room, connected, clockOffset, onAction }) {
         <span className="spark" aria-hidden="true">
           ✦
         </span>
-        <span className="log-text">{latest?.text ?? '小熊正在等你们一起玩。'}</span>
+        <span className="log-text">{latestText}</span>
       </LogLine>
 
       <ActionHead>
-        <h3>陪它做点什么</h3>
-        <span>点击小熊，也能摸摸它的头</span>
+        <h3>{t('care.actionHead')}</h3>
+        <span>{t('care.actionHint')}</span>
       </ActionHead>
 
       <Actions>
@@ -437,13 +444,17 @@ export default function CarePanel({ room, connected, clockOffset, onAction }) {
               $coolProgress={progress}
               onClick={() => onAction(action.id)}
               disabled={!connected || cooling}
-              title={cooling ? `${Math.ceil(remaining / 1000)} 秒后可以再来一次` : action.effect}
+              title={
+                cooling
+                  ? t('care.cooldownTitle', { seconds: Math.ceil(remaining / 1000) })
+                  : t(action.effectKey)
+              }
             >
               <span className="icon" aria-hidden="true">
                 {action.icon}
               </span>
-              <span className="label">{action.label}</span>
-              <span className="effect">{action.effect}</span>
+              <span className="label">{t(action.labelKey)}</span>
+              <span className="effect">{t(action.effectKey)}</span>
               {cooling && <span className="cool">{Math.ceil(remaining / 1000)}s</span>}
               {cooling && <span className="cool-bar" aria-hidden="true" />}
             </ActionButton>

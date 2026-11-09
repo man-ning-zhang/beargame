@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { useRoom } from '../context/RoomContext';
+import { useI18n } from '../context/LanguageContext';
+import LanguageToggle from './LanguageToggle';
 import { initialOf, otherSeat } from '../gameConfig';
 import { breakpoints, palette } from '../theme';
 import { isMuted, toggleMuted } from '../utils/sound';
@@ -16,8 +18,12 @@ const Header = styled.header`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
+  gap: 14px;
   padding: 4px 0 18px;
+
+  @media (max-width: ${breakpoints.small}) {
+    gap: 8px;
+  }
   animation: ${fade} 0.4s ease-out both;
 `;
 
@@ -53,6 +59,10 @@ const BrandName = styled.span`
   font-size: 17px;
   letter-spacing: 0.04em;
   white-space: nowrap;
+
+  @media (max-width: ${breakpoints.small}) {
+    font-size: 15px;
+  }
 `;
 
 const RoomPill = styled.button`
@@ -97,6 +107,10 @@ const Right = styled.div`
   display: flex;
   align-items: center;
   gap: 10px;
+
+  @media (max-width: ${breakpoints.small}) {
+    gap: 6px;
+  }
 `;
 
 const Players = styled.div`
@@ -206,8 +220,23 @@ const LeaveButton = styled(IconButton)`
   border-color: ${(props) => (props.$confirm ? 'rgba(232, 121, 95, 0.5)' : 'rgba(255, 248, 236, 0.1)')};
   background: ${(props) => (props.$confirm ? 'rgba(232, 121, 95, 0.14)' : 'rgba(255, 248, 236, 0.05)')};
 
+  .leave-icon {
+    display: none;
+  }
+
   @media (max-width: ${breakpoints.small}) {
     padding: 0 9px;
+    font-size: 0;
+
+    .leave-icon {
+      display: inline;
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    .leave-text {
+      display: none;
+    }
   }
 `;
 
@@ -236,6 +265,7 @@ function copyText(text) {
 
 export default function RoomHeader() {
   const { room, me, leave, status } = useRoom();
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [muted, setMutedState] = useState(isMuted());
@@ -279,15 +309,15 @@ export default function RoomHeader() {
       <Left>
         <BrandMark aria-hidden="true">🐻</BrandMark>
         <BrandBlock>
-          <BrandName>一起养只熊</BrandName>
+          <BrandName>{t('brand.name')}</BrandName>
           <RoomPill
             type="button"
             onClick={handleCopy}
-            title="复制房间号，发给 TA"
-            aria-label={`复制房间号 ${room.code}`}
+            title={t('room.copyTitle')}
+            aria-label={t('room.copyAria', { code: room.code })}
           >
-            小屋 <strong>{room.code}</strong>
-            {copied ? <Copied>已复制</Copied> : <span aria-hidden="true">⧉</span>}
+            {t('room.codeLabel')} <strong>{room.code}</strong>
+            {copied ? <Copied>{t('room.copied')}</Copied> : <span aria-hidden="true">⧉</span>}
           </RoomPill>
         </BrandBlock>
       </Left>
@@ -298,7 +328,7 @@ export default function RoomHeader() {
             <Avatar $color="#d9785f" $online={Boolean(mine?.online)}>
               {initialOf(mine?.name)}
             </Avatar>
-            <Name className="name">{mine?.name || '你'}</Name>
+            <Name className="name">{mine?.name || t('room.you')}</Name>
           </PlayerChip>
           {partner ? (
             <PlayerChip>
@@ -312,10 +342,12 @@ export default function RoomHeader() {
               <Avatar $color="#4a495c" $online={false}>
                 ?
               </Avatar>
-              <Name className="name">等 TA</Name>
+              <Name className="name">{t('room.waiting')}</Name>
             </PlayerChip>
           )}
         </Players>
+
+        <LanguageToggle />
 
         <IconButton
           type="button"
@@ -323,8 +355,8 @@ export default function RoomHeader() {
             const next = toggleMuted();
             setMutedState(next);
           }}
-          title={muted ? '打开声音' : '关闭声音'}
-          aria-label={muted ? '打开声音' : '关闭声音'}
+          title={muted ? t('room.soundOn') : t('room.soundOff')}
+          aria-label={muted ? t('room.soundOn') : t('room.soundOff')}
           aria-pressed={!muted}
         >
           {muted ? '🔇' : '🔊'}
@@ -335,9 +367,13 @@ export default function RoomHeader() {
           $confirm={confirming}
           onClick={handleLeave}
           disabled={status === 'reconnecting'}
-          title="离开小屋"
+          title={t('room.leaveTitle')}
+          aria-label={t('room.leaveTitle')}
         >
-          {confirming ? '确定离开？' : '离开'}
+          <span className="leave-icon" aria-hidden="true">
+            {confirming ? '✓' : '×'}
+          </span>
+          <span className="leave-text">{confirming ? t('room.leaveConfirm') : t('room.leave')}</span>
         </LeaveButton>
       </Right>
     </Header>

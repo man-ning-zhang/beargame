@@ -2,6 +2,7 @@ import React from 'react';
 import styled, { keyframes } from 'styled-components';
 import Bear from './Bear';
 import { breakpoints, palette, shadows } from '../theme';
+import { useI18n } from '../context/LanguageContext';
 
 const twinkle = keyframes`
   0%, 100% { opacity: 0.25; }
@@ -490,13 +491,14 @@ const BULBS = [
 ];
 
 function moodCopy(mood) {
-  if (mood >= 80) return { text: '小熊现在开心得冒泡', color: '#f1b94f' };
-  if (mood >= 55) return { text: '小熊心情还不错', color: '#7fae8b' };
-  if (mood >= 30) return { text: '小熊有点想你', color: '#e8a06a' };
-  return { text: '小熊有点低落，抱抱它吧', color: '#e8795f' };
+  if (mood >= 80) return { key: 'scene.mood.high', color: '#f1b94f' };
+  if (mood >= 55) return { key: 'scene.mood.good', color: '#7fae8b' };
+  if (mood >= 30) return { key: 'scene.mood.low', color: '#e8a06a' };
+  return { key: 'scene.mood.sad', color: '#e8795f' };
 }
 
 export default function Scene({ room, me, bubble, reaction, onPet, connected }) {
+  const { t } = useI18n();
   const mood = moodCopy(room.stats.mood);
   const bubbleIsMine = bubble?.seat === me;
 
@@ -570,23 +572,22 @@ export default function Scene({ room, me, bubble, reaction, onPet, connected }) 
 
       <BondPill>
         <span aria-hidden="true">❤️</span>
-        <strong>{room.bond.name}</strong>
-        <span className="level">Lv.{room.bond.level}</span>
+        <strong>{t(`bond.level.${room.bond.level}`)}</strong>
+        <span className="level">{t('bond.short', { level: room.bond.level })}</span>
       </BondPill>
 
       <Together $together={room.together}>
         {room.players.guest && room.players.host
           ? room.together
-            ? '你们都在 · 陪伴加成中'
-            : '等 TA 回到小屋'
-          : '等 TA 推门进来'}
+            ? t('scene.together')
+            : t('scene.waitingBack')
+          : t('scene.waitingIn')}
       </Together>
 
       {bubble && (
         <Bubble key={bubble.id}>
           <span className="bubble-name">
-            {bubbleIsMine ? '你' : bubble.name}
-            {bubbleIsMine ? ' · 悄悄话' : ''}
+            {bubbleIsMine ? t('scene.bubbleYou') : bubble.name}
           </span>
           {bubble.emote ? (
             <span className="bubble-emote" aria-hidden="true">
@@ -602,8 +603,8 @@ export default function Scene({ room, me, bubble, reaction, onPet, connected }) 
         <Bear stats={room.stats} reaction={reaction} onPet={onPet} disabled={!connected} />
       </BearSpot>
 
-      <MoodNote $color={mood.color}>{mood.text}</MoodNote>
-      <Hint>轻点小熊 · 摸摸它的头</Hint>
+      <MoodNote $color={mood.color}>{t(mood.key)}</MoodNote>
+      <Hint>{t('scene.hint')}</Hint>
     </SceneCard>
   );
 }

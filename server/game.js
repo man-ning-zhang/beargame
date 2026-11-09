@@ -6,46 +6,32 @@
 export const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const SEAT_GRACE_MS = 5 * 60 * 1000;
 
+// Labels, verbs and system-message copy live on the client so each player can
+// read the room in their own language. The server only stores structured data.
 export const ACTIONS = {
   feed: {
-    label: '喂蜂蜜',
     cooldown: 10_000,
-    verb: '喂了小熊一勺蜂蜜 🍯',
     effects: { fullness: 26, mood: 5, energy: 1, bond: 2 },
   },
   play: {
-    label: '玩毛线',
     cooldown: 14_000,
-    verb: '陪小熊滚起了毛线球 🧶',
     effects: { fullness: -5, mood: 20, energy: -12, bond: 3 },
   },
   hug: {
-    label: '抱抱',
     cooldown: 25_000,
-    verb: '把小熊抱进了怀里 🫂',
     effects: { fullness: -2, mood: 12, energy: 2, bond: 4 },
   },
   sleep: {
-    label: '哄睡',
     cooldown: 60_000,
-    verb: '轻轻哄小熊睡了一觉 🌙',
     effects: { fullness: -4, mood: 3, energy: 35, bond: 1 },
   },
   pet: {
-    label: '摸摸头',
     cooldown: 3_000,
-    verb: '摸了摸小熊的脑袋 🤎',
     effects: { mood: 4, bond: 1 },
   },
 };
 
-export const BOND_LEVELS = [
-  { min: 0, name: '初次见面' },
-  { min: 30, name: '慢慢熟悉' },
-  { min: 90, name: '亲密无间' },
-  { min: 180, name: '心有灵犀' },
-  { min: 320, name: '命中注定' },
-];
+export const BOND_LEVELS = [0, 30, 90, 180, 320].map((min) => ({ min }));
 
 const MAX_LOG = 24;
 const MAX_CHAT = 60;
@@ -78,7 +64,7 @@ function stripControlCharacters(value) {
 
 export function sanitizeName(raw) {
   const text = Array.from(stripControlCharacters(raw).trim()).slice(0, MAX_NAME).join('');
-  return text || '小熊朋友';
+  return text || '🐻';
 }
 
 export function normalizeCode(raw) {
@@ -160,21 +146,20 @@ function seatIsFree(room, seat, now) {
   return !player.online && now - player.lastSeen > SEAT_GRACE_MS;
 }
 
-function addSystemChat(room, text, now) {
+function addSystemChat(room, event, data = {}, now = Date.now()) {
   room.chat.push({
     id: room.seq++,
     at: now,
     seat: 'system',
-    name: '小熊',
-    text,
-    emote: '',
     kind: 'system',
+    event,
+    data,
   });
   if (room.chat.length > MAX_CHAT) room.chat = room.chat.slice(-MAX_CHAT);
 }
 
-export function systemChat(room, text, now = Date.now()) {
-  addSystemChat(room, text, now);
+export function systemChat(room, event, data = {}, now = Date.now()) {
+  addSystemChat(room, event, data, now);
 }
 
 /**
@@ -220,7 +205,7 @@ export function joinRoom(room, { name, token, now = Date.now() } = {}) {
   room.lastActive = nowMs;
 
   if (otherOnlineBefore) {
-    addSystemChat(room, `${cleanName} 推门进来啦，小熊开心地转了个圈。`, nowMs);
+    addSystemChat(room, 'join', { name: cleanName }, nowMs);
   }
 
   return { ok: true, seat, token: safeToken, reconnected: false, replaced };
@@ -310,7 +295,6 @@ export function performAction(room, seat, actionId, now = Date.now()) {
     seat,
     name: player.name,
     action: actionId,
-    text: `${player.name} ${config.verb}`,
   });
   room.lastActive = now;
   return { ok: true, entry };
@@ -407,7 +391,6 @@ export function bondInfo(points) {
   const span = next ? next.min - current.min : 1;
   return {
     level: index + 1,
-    name: current.name,
     points: Math.round(points),
     next: next ? next.min : null,
     progress: next ? clamp((points - current.min) / span, 0, 1) : 1,

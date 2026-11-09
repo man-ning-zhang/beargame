@@ -6,7 +6,7 @@
 
 ![大厅](docs/preview-lobby.jpg)
 
-![小屋与井字棋](docs/preview-game.jpg)
+![小屋与井字棋（英文界面，右上角可切换中文 / EN）](docs/preview-game.jpg)
 
 ## 这是什么
 
@@ -33,7 +33,17 @@
 | 断线重连 | token + 房间号存在 localStorage，刷新自动回座；座位保留 5 分钟 |
 | 陪伴机制 | 两个人都在线时心情更稳定、亲密度增长；没人时小熊打盹，数值暂停衰减 |
 | 移动端 | 手机 / 平板响应式布局，支持触屏 |
+| 双语界面 | 每个玩家独立选择中文 / English，自动跟随浏览器语言，随时切换 |
 | 小细节 | 音效开关、房间号一键复制、动作冷却、上线提示、离线提示 |
+
+## 中英文玩家可以同时玩吗？
+
+可以，而且不需要房间统一语言。
+
+- **语言是每个玩家自己的设置**：首次打开会自动跟随浏览器语言（中文浏览器 → 中文，其他 → English），右上角的「中文 / EN」可以随时切换，并记住选择。
+- **同一个房间，两个视角**：动作日志、系统提示、按钮、亲密度等级、井字棋文字都由客户端按自己的语言渲染；服务端只保存结构化的 `action` / `event` 数据，不保存某一种语言的文案。
+- **聊天保持原文**：玩家名字和聊天内容不会自动翻译。中文玩家可以打中文，英文玩家可以打英文；对方看到的是原文。如果以后想加自动翻译，需要接一个翻译 API（目前没有接）。
+- **实测**：同一个房间，一个中文窗口 + 一个英文窗口，建房、喂食、聊天、井字棋、断线重连都正常。
 
 ## 快速开始
 
@@ -95,15 +105,26 @@ ngrok http 8787
 - 不要把房间号发到公开群聊里。
 - 关闭终端后链接就失效了。
 
-### 方式二：部署到 Render（免费档，适合长期玩）
+### 方式二：部署到 Render（推荐，支持 WebSocket）
 
-1. 把这个仓库推到 GitHub；
-2. 在 [Render](https://render.com/) 新建 **Web Service**，连接这个仓库；
-3. 构建命令：`npm ci --include=dev && npm run build`
-4. 启动命令：`npm start`
-5. 环境变量：`NODE_VERSION=20.19.0`（或任意 Node 20+）
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/man-ning-zhang/beargame)
 
-仓库里已经带了 `render.yaml`，也可以直接用 Blueprint 部署。Render 免费实例在一段时间没人访问后会休眠，第一次打开会慢几秒；服务重启后内存里的房间会清空（见下方「已知限制」）。
+仓库里已经带了 `render.yaml`，点击上面的按钮即可走 Blueprint 部署：
+
+1. 如果仓库是 **private**，先在 Render 的 GitHub App 设置里给 `man-ning-zhang/beargame` 授权（Render Dashboard → Account Settings → GitHub → Repository access）；
+2. 点击 **Deploy to Render**，确认创建 `bear-together` 这个 Web Service；
+3. 等构建完成，打开 Render 给的 `https://bear-together-xxxx.onrender.com`；
+4. 以后 push 到 `main` 会自动重新部署（`render.yaml` 默认 `autoDeployTrigger: commit`）。
+
+配置已经写在 `render.yaml` 里：
+
+- Runtime：Node
+- Build：`npm ci --include=dev && npm run build`
+- Start：`npm start`
+- Health check：`/healthz`
+- Plan：`free`
+
+**免费档注意**：Render 免费实例在空闲后会休眠，第一次打开要等几十秒；休眠 / 重启 / 重新部署会清空内存里的房间、聊天和棋局。两个人重新开一间房就能继续玩。想长期保留数据，需要加 Render Key Value / Postgres，或者挂一个持久磁盘（付费）。
 
 ### 方式三：Docker
 
@@ -139,6 +160,7 @@ docker run -p 8787:8787 bear-together
 - **没人时不掉状态**：只有至少一个人在线时小熊才会饿 / 累；两个人都离开后房间进入打盹状态，避免回来看到一只饿坏的小熊。
 - **重连优先于踢人**：刷新页面会用同一个 token 回到原座位；真正的「离开」按钮才会释放座位。
 - **房间码即钥匙**：没有账号系统，4 位房间号 + 两个座位。适合情侣 / 朋友，不适合存放敏感内容。
+- **双语在客户端完成**：服务端只存 `action` / `event` 这类结构化数据，前端根据每个玩家的语言翻译；因此同一个房间可以一边中文一边 English，聊天内容保持原文。
 - **数据在内存里**：房间、聊天、棋局、亲密度都在 Node 进程内存中。重启服务会清空；房间空置 12 小时后自动回收。
 
 ## 脚本
@@ -164,7 +186,8 @@ docker run -p 8787:8787 bear-together
 │   └── game.test.js    # node:test 单元测试
 ├── src/
 │   ├── components/     # Bear / Scene / CarePanel / ChatPanel / GamePanel ...
-│   ├── context/        # RoomContext：连接、重连、房间状态
+│   ├── context/        # RoomContext + LanguageContext
+│   ├── i18n.js         # 中文 / English 文案与语言检测
 │   ├── pages/          # Lobby / RoomPage
 │   ├── utils/sound.js  # WebAudio 小音效
 │   ├── gameConfig.js
@@ -191,6 +214,7 @@ npm run build
 
 - 房间只存在内存里，服务重启就没了；想长期保留可以加 SQLite / Redis；
 - 没有账号，房间码就是唯一凭证；
+- 聊天不会自动翻译，显示的是对方输入的原文；需要自动翻译的话要接翻译 API；
 - 目前只有一个实时小游戏（井字棋），后面可以加你画我猜、双人翻牌、合作接星星；
 - 可以加一个「共同日记」：每天留一句话，第二天对方进来才能看到；
 - 可以做成 PWA，手机上像 App 一样打开；

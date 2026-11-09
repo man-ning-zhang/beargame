@@ -1,5 +1,6 @@
 import React from 'react';
 import Backdrop from './components/Backdrop';
+import { LanguageProvider } from './context/LanguageContext';
 import Toast from './components/Toast';
 import { RoomProvider, useRoom } from './context/RoomContext';
 import Lobby from './pages/Lobby';
@@ -12,12 +13,14 @@ function Screen() {
 
 export default function App() {
   return (
-    <RoomProvider>
-      <Backdrop />
-      <main className="app-shell">
-        <Screen />
-      </main>
-      <Toast />
-    </RoomProvider>
+    <LanguageProvider>
+      <RoomProvider>
+        <Backdrop />
+        <main className="app-shell">
+          <Screen />
+        </main>
+        <Toast />
+      </RoomProvider>
+    </LanguageProvider>
   );
 }

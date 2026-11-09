@@ -73,7 +73,8 @@ test('actions change stats and respect a shared cooldown', () => {
   const later = performAction(room, 'guest', 'feed', T0 + 100 + ACTIONS.feed.cooldown);
   assert.equal(later.ok, true);
   assert.equal(room.log.length, 2);
-  assert.match(room.log[0].text, /阿远/);
+  assert.equal(room.log[0].name, '阿远');
+  assert.equal(room.log[0].action, 'feed');
 });
 
 test('stats decay while someone is online and pause while empty', () => {
@@ -154,12 +155,19 @@ test('publishes a safe snapshot without tokens', () => {
   assert.equal(JSON.stringify(state).includes(HOST_TOKEN), false);
   assert.equal(typeof state.serverTime, 'number');
   assert.equal(state.bond.level, 1);
+  const joinMessage = state.chat.find((message) => message.kind === 'system');
+  assert.equal(joinMessage.event, 'join');
+  assert.equal(joinMessage.data.name, '阿远');
+  assert.equal('text' in joinMessage, false);
 });
 
-test('maps bond points onto named levels', () => {
-  assert.equal(bondInfo(0).name, '初次见面');
+test('maps bond points onto numbered levels', () => {
+  assert.equal(bondInfo(0).level, 1);
   assert.equal(bondInfo(29).level, 1);
-  assert.equal(bondInfo(30).name, '慢慢熟悉');
-  assert.equal(bondInfo(320).name, '命中注定');
+  assert.equal(bondInfo(30).level, 2);
+  assert.equal(bondInfo(90).level, 3);
+  assert.equal(bondInfo(180).level, 4);
+  assert.equal(bondInfo(320).level, 5);
   assert.equal(bondInfo(320).progress, 1);
+  assert.equal('name' in bondInfo(30), false);
 });

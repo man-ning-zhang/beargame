@@ -17,6 +17,27 @@ const KEYS = {
   room: 'bearTogether.room',
 };
 
+const ERROR_KEYS = {
+  room_not_found: 'error.roomNotFound',
+  room_full: 'error.roomFull',
+  full: 'error.roomFull',
+  invalid_code: 'error.invalidCode',
+  busy: 'error.busy',
+  rate_limited: 'error.rateLimited',
+  replaced: 'error.replaced',
+  not_in_room: 'error.notInRoom',
+  invalid_action: 'error.invalidAction',
+};
+
+const TOAST_KEYS = {
+  action_cooldown: 'toast.actionCooldown',
+  chat_slow: 'toast.chatSlow',
+  socket_slow: 'toast.socketSlow',
+  game_waiting: 'toast.gameWaiting',
+  game_not_turn: 'toast.gameNotTurn',
+  game_in_progress: 'toast.gameInProgress',
+};
+
 function readStorage(key) {
   try {
     return window.localStorage.getItem(key);
@@ -105,9 +126,9 @@ export function RoomProvider({ children }) {
   const aliveRef = useRef(true);
   const openSocketRef = useRef(null);
 
-  const showToast = useCallback((message) => {
-    if (!message) return;
-    setToast({ id: `${Date.now()}-${Math.random()}`, message });
+  const showToast = useCallback((key, params = null) => {
+    if (!key) return;
+    setToast({ id: `${Date.now()}-${Math.random()}`, key, params });
   }, []);
 
   useEffect(() => {
@@ -179,7 +200,10 @@ export function RoomProvider({ children }) {
           break;
         }
         case 'toast': {
-          showToast(message.message);
+          showToast(
+            TOAST_KEYS[message.code] ?? 'error.generic',
+            message.code === 'action_cooldown' ? { wait: message.wait } : null,
+          );
           break;
         }
         case 'error': {
@@ -189,8 +213,7 @@ export function RoomProvider({ children }) {
             setRoom(null);
             setMe(null);
             setStatus('idle');
-            setNotice(message.message || '这个房间在另一个窗口打开了。');
-            showToast(message.message || '这个房间在另一个窗口打开了。');
+            setNotice('error.replaced');
             writeStorage(KEYS.room, null);
             setLastRoom('');
             setInitialCode('');
@@ -199,19 +222,19 @@ export function RoomProvider({ children }) {
           }
 
           if (message.code === 'rate_limited' && inRoomRef.current) {
-            showToast(message.message);
+            showToast('error.rateLimited');
             break;
           }
 
-          if (['room_not_found', 'room_full', 'invalid_code', 'busy', 'rate_limited'].includes(message.code)) {
+          if (['room_not_found', 'room_full', 'invalid_code', 'busy', 'rate_limited', 'full'].includes(message.code)) {
             inRoomRef.current = false;
             desiredRef.current = null;
             setRoom(null);
             setMe(null);
             setStatus('idle');
-            setNotice(message.message || '没有进到这间小屋。');
+            setNotice(ERROR_KEYS[message.code] ?? 'error.generic');
             playSound('error');
-            if (['room_not_found', 'room_full', 'invalid_code'].includes(message.code)) {
+            if (['room_not_found', 'room_full', 'invalid_code', 'full'].includes(message.code)) {
               writeStorage(KEYS.room, null);
               setLastRoom('');
               setInitialCode('');
@@ -220,7 +243,7 @@ export function RoomProvider({ children }) {
             break;
           }
 
-          showToast(message.message || '小熊没听懂，再试一次吧。');
+          showToast(ERROR_KEYS[message.code] ?? 'error.generic');
           break;
         }
         default:
@@ -357,7 +380,7 @@ export function RoomProvider({ children }) {
     (action) => {
       if (!inRoomRef.current) return false;
       if (!sendRaw({ type: 'action', action })) {
-        showToast('正在重新连回小屋…');
+        showToast('toast.reconnecting');
         return false;
       }
       return true;
@@ -371,7 +394,7 @@ export function RoomProvider({ children }) {
       const cleanText = String(text ?? '').slice(0, 120);
       if (!cleanText.trim() && !emote) return false;
       if (!sendRaw({ type: 'chat', text: cleanText, emote })) {
-        showToast('还在重新连接，消息没有发出去。');
+        showToast('toast.chatOffline');
         return false;
       }
       return true;

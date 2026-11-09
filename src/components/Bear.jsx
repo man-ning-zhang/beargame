@@ -1,6 +1,7 @@
 import React, { useId, useMemo } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { palette } from '../theme';
+import { useI18n } from '../context/LanguageContext';
 
 const breathe = keyframes`
   0%, 100% { transform: scale(1) translateY(0); }
@@ -163,6 +164,7 @@ const REACTION_ICONS = {
 
 export default function Bear({ stats = {}, reaction = null, onPet = null, disabled = false }) {
   const uid = useId().replace(/:/g, '');
+  const { t } = useI18n();
   const mood = stats.mood ?? 76;
   const fullness = stats.fullness ?? 72;
   const energy = stats.energy ?? 70;
@@ -236,7 +238,7 @@ export default function Bear({ stats = {}, reaction = null, onPet = null, disabl
           />
           {hungry && (
             <text x="197" y="242" fontSize="13" fill="#7c5a47" fontFamily="inherit" className="zzz">
-              咕…
+              {t('bear.rumble')}
             </text>
           )}
         </g>
@@ -258,7 +260,7 @@ export default function Bear({ stats = {}, reaction = null, onPet = null, disabl
       className="bear-figure"
       viewBox="0 0 260 285"
       role="img"
-      aria-label={onPet ? '摸摸小熊' : '一只毛茸茸的小熊'}
+      aria-label={onPet ? t('bear.pat') : t('bear.aria')}
     >
       <defs>
         <radialGradient id={`fur-${uid}`} cx="34%" cy="22%" r="85%">
@@ -366,7 +368,7 @@ export default function Bear({ stats = {}, reaction = null, onPet = null, disabl
         type="button"
         onClick={onPet || undefined}
         disabled={!onPet || disabled}
-        aria-label={onPet ? '摸摸小熊' : undefined}
+        aria-label={onPet ? t('bear.pat') : undefined}
         style={!onPet ? { cursor: 'default' } : undefined}
       >
         <FigureWrap key={reaction?.id ?? 'idle'} className={figureClass}>
