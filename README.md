@@ -4,6 +4,9 @@
 >
 > 一个只有两个人在线的共同养熊小游戏：一起喂它、陪它玩、摸摸它的头，顺便说几句悄悄话，或者下一盘井字棋。
 
+**在线玩：** <https://bear-together.onrender.com>  
+（Render 免费档，第一次打开可能需要等几十秒；两个人重新开一间房即可。）
+
 ![大厅](docs/preview-lobby.jpg)
 
 ![小屋与井字棋（英文界面，右上角可切换中文 / EN）](docs/preview-game.jpg)
@@ -109,7 +112,11 @@ ngrok http 8787
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/man-ning-zhang/beargame)
 
-仓库里已经带了 `render.yaml`，点击上面的按钮即可走 Blueprint 部署：
+仓库里已经带了 `render.yaml`，点击上面的按钮即可走 Blueprint 部署。当前已经部署好的实例：
+
+**<https://bear-together.onrender.com>**
+
+部署步骤：
 
 1. 如果仓库是 **private**，先在 Render 的 GitHub App 设置里给 `man-ning-zhang/beargame` 授权（Render Dashboard → Account Settings → GitHub → Repository access）；
 2. 点击 **Deploy to Render**，确认创建 `bear-together` 这个 Web Service；
