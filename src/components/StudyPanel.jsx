@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import styled, { css, keyframes } from 'styled-components';
 import { useI18n } from '../context/LanguageContext';
+import ClozePanel from './ClozePanel';
 import NotebookPanel from './NotebookPanel';
 import { speakChinese, speechSupported } from '../utils/speech';
 import { breakpoints, palette } from '../theme';
@@ -160,6 +161,50 @@ const TodayRow = styled.div`
   span {
     color: ${palette.muted};
     font-size: 9.5px;
+  }
+`;
+
+const LimitRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 9px;
+
+  .label {
+    margin-right: 2px;
+    color: ${palette.muted};
+    font-size: 8.5px;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+`;
+
+const LimitChip = styled.button`
+  min-width: 28px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 7px;
+  border: 1px solid ${(props) => (props.$active ? 'transparent' : 'rgba(61, 47, 41, 0.09)')};
+  background: ${(props) => (props.$active ? 'rgba(232, 121, 95, 0.16)' : 'rgba(255, 255, 255, 0.6)')};
+  color: ${(props) => (props.$active ? palette.coralDeep : palette.muted)};
+  font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+  font-size: 9.5px;
+  font-weight: ${(props) => (props.$active ? 700 : 500)};
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: #fff;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(232, 121, 95, 0.35);
+    outline-offset: 1px;
   }
 `;
 
@@ -486,9 +531,14 @@ export default function StudyPanel({
   connected,
   onGrade,
   onLevel,
+  onLimit,
   onSaveNote,
   onRemoveNote,
   onToggleNoteStudy,
+  cloze,
+  clozeResult,
+  onRequestCloze,
+  onAnswerCloze,
 }) {
   const { t } = useI18n();
   const study = room?.study ?? null;
@@ -503,6 +553,18 @@ export default function StudyPanel({
     setRevealed(false);
     setPending('');
   }, [card?.w, study?.level]);
+
+  // Ask for a question when the cloze view opens (once, not in a loop).
+  const clozeAsked = useRef(false);
+  useEffect(() => {
+    if (view !== 'cloze') {
+      clozeAsked.current = false;
+      return;
+    }
+    if (cloze || clozeAsked.current) return;
+    clozeAsked.current = true;
+    onRequestCloze();
+  }, [view, cloze, onRequestCloze]);
 
   useEffect(() => {
     if (!pending) return undefined;
@@ -563,6 +625,15 @@ export default function StudyPanel({
         <SwitchButton
           type="button"
           role="tab"
+          aria-selected={view === 'cloze'}
+          $active={view === 'cloze'}
+          onClick={() => setView('cloze')}
+        >
+          {t('study.view.cloze')}
+        </SwitchButton>
+        <SwitchButton
+          type="button"
+          role="tab"
           aria-selected={view === 'notes'}
           $active={view === 'notes'}
           onClick={() => setView('notes')}
@@ -572,7 +643,15 @@ export default function StudyPanel({
         </SwitchButton>
       </ViewSwitch>
 
-      {view === 'notes' ? (
+      {view === 'cloze' ? (
+        <ClozePanel
+          question={cloze}
+          result={clozeResult}
+          connected={connected}
+          onRequest={onRequestCloze}
+          onAnswer={onAnswerCloze}
+        />
+      ) : view === 'notes' ? (
         <div style={{ marginTop: 11 }}>
           <NotebookPanel
             notes={notes}
@@ -624,6 +703,21 @@ export default function StudyPanel({
         <Track>
           <Fill $percent={percent} />
         </Track>
+        <LimitRow>
+          <span className="label">{t('study.limit.label')}</span>
+          {[10, 20, 50, 999].map((value) => (
+            <LimitChip
+              key={value}
+              type="button"
+              $active={today.newLimit === value}
+              aria-pressed={today.newLimit === value}
+              disabled={!connected}
+              onClick={() => onLimit(value)}
+            >
+              {value === 999 ? t('study.limit.all') : value}
+            </LimitChip>
+          ))}
+        </LimitRow>
       </Today>
 
       {card ? (

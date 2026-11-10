@@ -17,6 +17,8 @@ const DECK = JSON.parse(fs.readFileSync(new URL('./data/hsk.json', import.meta.u
 export const GRADES = ['again', 'hard', 'good'];
 export const DAILY_NEW = 10;
 export const DAILY_GOAL = 10;
+/** 999 means "no daily cap" in the UI. */
+export const NEW_PER_DAY_OPTIONS = [10, 20, 50, 999];
 
 const MINUTE = 60_000;
 const DAY = 24 * 60 * MINUTE;
@@ -70,6 +72,7 @@ export function createStudyState(level = STUDY_LEVELS[0] ?? 1) {
     reviewedToday: 0,
     newToday: 0,
     totalReviews: 0,
+    newPerDay: DAILY_NEW,
     rev: 0,
     /** key → { ease, interval (days), due, reps, lapses, seen } */
     cards: {},
@@ -90,6 +93,9 @@ export function sanitizeStudyState(raw) {
   study.reviewedToday = Math.round(clampNumber(raw.reviewedToday, 0, 100_000));
   study.newToday = Math.round(clampNumber(raw.newToday, 0, 100_000));
   study.totalReviews = Math.round(clampNumber(raw.totalReviews, 0, 1_000_000));
+  study.newPerDay = NEW_PER_DAY_OPTIONS.includes(Number(raw.newPerDay))
+    ? Number(raw.newPerDay)
+    : DAILY_NEW;
 
   const entries = Object.entries(raw.cards ?? {}).slice(0, MAX_TRACKED_CARDS);
   for (const [key, rec] of entries) {
@@ -201,7 +207,7 @@ export function buildQueue(study, now = Date.now(), extras = []) {
   due.sort((a, b) => a.rec.due - b.rec.due);
   learning.sort((a, b) => a.rec.due - b.rec.due);
 
-  const newSlots = Math.max(0, DAILY_NEW - study.newToday);
+  const newSlots = Math.max(0, (study.newPerDay ?? DAILY_NEW) - study.newToday);
   const fresh = [...freshMine, ...freshHsk].slice(0, newSlots);
   const picked = [
     ...due.slice(0, MAX_DUE_IN_QUEUE).map((item) => item.card),
@@ -259,6 +265,17 @@ export function gradeCard(study, key, grade, now = Date.now(), extras = []) {
   if (isNew) study.newToday += 1;
 
   return { ok: true, card: publicCard(card, rec), interval: rec.interval, wasNew: isNew };
+}
+
+/** How many new words the player wants to meet per day. */
+export function setStudyLimit(study, value) {
+  const next = Number(value);
+  if (!NEW_PER_DAY_OPTIONS.includes(next)) return { ok: false, error: 'invalid_limit' };
+  if (study.newPerDay !== next) {
+    study.newPerDay = next;
+    study.rev += 1;
+  }
+  return { ok: true, limit: next };
 }
 
 export function setStudyLevel(study, level) {
@@ -325,7 +342,7 @@ export function studyView(study, now = Date.now(), extras = []) {
       goal: stats.goal,
       done: stats.doneToday,
       newCards: stats.newToday,
-      newLimit: DAILY_NEW,
+      newLimit: study.newPerDay ?? DAILY_NEW,
     },
     streak: stats.streak,
     total: stats.total,
@@ -336,6 +353,70 @@ export function studyView(study, now = Date.now(), extras = []) {
     rev: study.rev,
     queue: buildQueue(study, now, extras),
   };
+}
+
+/** Public lookup used by the cloze flow to check an answer. */
+export function cardByKey(study, key, extras = []) {
+  return findCard(study, String(key ?? ''), extras);
+}
+
+function shuffle(items) {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+/**
+ * A fill-in-the-blank question from the cards that are due or new. Options are
+ * pulled from words of a similar length so the shape of the answer is not a
+ * giveaway.
+ */
+export function nextCloze(study, now = Date.now(), extras = []) {
+  rollStudyDay(study, now);
+  const withSentence = deckFor(study, extras).filter((card) => card.s);
+  if (!withSentence.length) return null;
+
+  const ready = withSentence.filter((card) => {
+    const rec = study.cards[card.key];
+    if (!rec) return true;
+    return rec.due <= now || rec.due - now <= LEARNING_WINDOW;
+  });
+  const pool = ready.length ? ready : withSentence;
+  const card = pool[Math.floor(Math.random() * pool.length)];
+
+  const size = Array.from(card.w).length;
+  const sameShape = withSentence.filter(
+    (other) => other.key !== card.key && Math.abs(Array.from(other.w).length - size) <= 1,
+  );
+  const source = sameShape.length >= 3 ? sameShape : withSentence.filter((other) => other.key !== card.key);
+  const options = shuffle([card.w, ...shuffle(source).slice(0, 3).map((other) => other.w)]);
+
+  const rec = study.cards[card.key];
+  const base = rec ?? { ease: START_EASE, interval: 0, reps: 0 };
+
+  return {
+    key: card.key,
+    prompt: card.s,
+    answer: card.w,
+    options,
+    p: card.p,
+    m: card.m,
+    l: card.l,
+    iv: [nextInterval(base, 'hard'), nextInterval(base, 'good')],
+  };
+}
+
+/** Answering a cloze is a real review: right → "good", wrong → "again". */
+export function gradeCloze(study, key, choice, now = Date.now(), extras = []) {
+  const card = findCard(study, String(key ?? ''), extras);
+  if (!card) return { ok: false, error: 'unknown_card' };
+  const correct = String(choice) === card.w;
+  const graded = gradeCard(study, card.key, correct ? 'good' : 'again', now, extras);
+  if (!graded.ok) return graded;
+  return { ok: true, correct, answer: card.w, interval: graded.interval, iv: graded.card.iv };
 }
 
 /** The other player only gets a headline — enough to cheer them on. */

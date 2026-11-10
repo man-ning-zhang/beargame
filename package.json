@@ -12,7 +12,8 @@
     "test": "node --test server/game.test.js server/study.test.js",
     "lint": "eslint src server --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "data:hsk": "node scripts/build-hsk.mjs"
+    "data:hsk": "node scripts/build-hsk.mjs",
+    "data:examples": "node scripts/build-examples.mjs"
   },
   "dependencies": {
     "react": "^18.2.0",
@@ -28,6 +29,7 @@
     "eslint-plugin-react": "^7.33.2",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
+    "opencc-js": "^1.4.2",
     "vite": "^5.1.4"
   },
   "engines": {

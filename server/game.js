@@ -7,9 +7,12 @@ import {
   DAILY_GOAL,
   createStudyState,
   gradeCard,
+  gradeCloze,
+  nextCloze,
   rollStudyDay,
   sanitizeStudyState,
   setStudyLevel,
+  setStudyLimit,
   studySummary,
   studyView,
 } from './study.js';
@@ -430,19 +433,60 @@ export function performStudyGrade(room, seat, key, grade, now = Date.now()) {
   if (!result.ok) return result;
 
   bumpPersonal(personal, now);
+  checkStudyMilestones(room, seat, before, now);
 
-  if (before < DAILY_GOAL && study.reviewedToday >= DAILY_GOAL) {
+  room.lastActive = now;
+  return result;
+}
+
+/** Crossing the daily goal warms the bear — once per player per day. */
+function checkStudyMilestones(room, seat, before, now) {
+  const player = room.seats[seat];
+  const study = room.personal?.[seat]?.study;
+  if (!player || !study) return;
+  if (before >= DAILY_GOAL || study.reviewedToday < DAILY_GOAL) return;
+
+  room.stats.bond = clamp(room.stats.bond + 2, 0, 999);
+  addSystemChat(room, 'studyGoal', { name: player.name }, now);
+
+  const partnerPersonal = room.personal[opponentOf(seat)];
+  if (partnerPersonal) rollStudyDay(partnerPersonal.study, now);
+  if (partnerPersonal && partnerPersonal.study.reviewedToday >= DAILY_GOAL) {
     room.stats.bond = clamp(room.stats.bond + 2, 0, 999);
-    addSystemChat(room, 'studyGoal', { name: player.name }, now);
-
-    const partnerPersonal = room.personal[opponentOf(seat)];
-    if (partnerPersonal) rollStudyDay(partnerPersonal.study, now);
-    if (partnerPersonal && partnerPersonal.study.reviewedToday >= DAILY_GOAL) {
-      room.stats.bond = clamp(room.stats.bond + 2, 0, 999);
-      addSystemChat(room, 'studyTogether', {}, now);
-    }
+    addSystemChat(room, 'studyTogether', {}, now);
   }
+}
 
+export function performStudyLimitChange(room, seat, value, now = Date.now()) {
+  const personal = room.personal?.[seat];
+  if (!room.seats[seat]?.online || !personal) return { ok: false, error: 'invalid' };
+  const result = setStudyLimit(personal.study, value);
+  if (result.ok) {
+    bumpPersonal(personal, now);
+    room.lastActive = now;
+  }
+  return result;
+}
+
+/** A fill-in-the-blank question for this player, or null if nothing fits. */
+export function nextClozeFor(room, seat, now = Date.now()) {
+  const personal = room.personal?.[seat];
+  if (!personal || !room.seats[seat]?.online) return null;
+  return nextCloze(personal.study, now, noteCards(personal.notes));
+}
+
+export function answerClozeFor(room, seat, key, choice, now = Date.now()) {
+  const player = room.seats[seat];
+  const personal = room.personal?.[seat];
+  if (!player || !player.online || !personal) return { ok: false, error: 'invalid' };
+
+  rollStudyDay(personal.study, now);
+  const before = personal.study.reviewedToday;
+  const result = gradeCloze(personal.study, key, choice, now, noteCards(personal.notes));
+  if (!result.ok) return result;
+
+  bumpPersonal(personal, now);
+  checkStudyMilestones(room, seat, before, now);
   room.lastActive = now;
   return result;
 }

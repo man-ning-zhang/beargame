@@ -15,6 +15,10 @@ import {
   studyStats,
   studySummary,
   studyView,
+  gradeCloze,
+  nextCloze,
+  sanitizeStudyState,
+  setStudyLimit,
 } from './study.js';
 
 const T0 = 1_700_000_000_000;
@@ -194,4 +198,47 @@ test('summaries and day keys stay stable for the same moment', () => {
   assert.equal(dayKey(T0), dayKey(T0 + MINUTE));
   assert.equal(studySummary(study, T0).goal, DAILY_GOAL);
   assert.equal(studySummary(study, T0).reviewed, 0);
+});
+
+test('the daily new-word limit is adjustable and respected', () => {
+  const study = createStudyState(1);
+  assert.equal(study.newPerDay, 10);
+
+  assert.equal(setStudyLimit(study, 20).ok, true);
+  assert.equal(study.newPerDay, 20);
+  assert.equal(buildQueue(study, T0).length, 20);
+
+  assert.equal(setStudyLimit(study, 999).ok, true);
+  assert.ok(buildQueue(study, T0).length > 20);
+
+  assert.equal(setStudyLimit(study, 7).ok, false);
+  assert.equal(study.newPerDay, 999);
+
+  // The setting survives a round trip through the browser payload.
+  const restored = sanitizeStudyState({ newPerDay: 50 });
+  assert.equal(restored.newPerDay, 50);
+  assert.equal(sanitizeStudyState({ newPerDay: 12345 }).newPerDay, 10);
+});
+
+test('cloze questions offer four options including the answer', () => {
+  const study = createStudyState(1);
+  const question = nextCloze(study, T0);
+  assert.ok(question, 'HSK 1 has sentences to blank');
+  assert.equal(question.options.length, 4);
+  assert.ok(question.options.includes(question.answer));
+  assert.ok(question.prompt.includes('＿＿'));
+  assert.ok(question.m && question.p);
+
+  const right = gradeCloze(study, question.key, question.answer, T0);
+  assert.equal(right.correct, true);
+  assert.equal(study.reviewedToday, 1);
+  assert.equal(study.cards[question.key].reps, 1);
+
+  const other = createStudyState(1);
+  const second = nextCloze(other, T0);
+  const wrongChoice = second.options.find((option) => option !== second.answer);
+  const wrong = gradeCloze(other, second.key, wrongChoice, T0);
+  assert.equal(wrong.correct, false);
+  assert.equal(wrong.answer, second.answer);
+  assert.ok(other.cards[second.key].due - T0 <= 15 * MINUTE, 'a missed word comes back soon');
 });

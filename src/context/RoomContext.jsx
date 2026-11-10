@@ -145,6 +145,8 @@ export function RoomProvider({ children }) {
   const [clockOffset, setClockOffset] = useState(0);
   const [notice, setNotice] = useState('');
   const [toast, setToast] = useState(null);
+  const [cloze, setCloze] = useState(null);
+  const [clozeResult, setClozeResult] = useState(null);
   const [lastRoom, setLastRoom] = useState(readStorage(KEYS.room) || '');
   const [initialCode, setInitialCode] = useState(urlCode || readStorage(KEYS.room) || '');
 
@@ -248,11 +250,27 @@ export function RoomProvider({ children }) {
           break;
         }
         case 'left': {
+          setCloze(null);
+          setClozeResult(null);
           inRoomRef.current = false;
           desiredRef.current = null;
           setRoom(null);
           setMe(null);
           setStatus('idle');
+          break;
+        }
+        case 'cloze': {
+          setCloze(message.question ?? null);
+          setClozeResult(null);
+          break;
+        }
+        case 'clozeResult': {
+          setClozeResult({
+            correct: Boolean(message.correct),
+            answer: message.answer,
+            interval: message.interval,
+            iv: message.iv,
+          });
           break;
         }
         case 'toast': {
@@ -492,6 +510,27 @@ export function RoomProvider({ children }) {
     [sendRaw],
   );
 
+  const setStudyLimit = useCallback(
+    (limit) => {
+      if (!inRoomRef.current) return false;
+      return sendRaw({ type: 'study', action: 'limit', limit: Number(limit) });
+    },
+    [sendRaw],
+  );
+
+  const requestCloze = useCallback(() => {
+    if (!inRoomRef.current) return false;
+    return sendRaw({ type: 'study', action: 'cloze' });
+  }, [sendRaw]);
+
+  const answerCloze = useCallback(
+    (key, choice) => {
+      if (!inRoomRef.current) return false;
+      return sendRaw({ type: 'study', action: 'clozeAnswer', key, choice });
+    },
+    [sendRaw],
+  );
+
   const saveNote = useCallback(
     (note) => {
       if (!inRoomRef.current) return false;
@@ -539,6 +578,11 @@ export function RoomProvider({ children }) {
     rematch,
     gradeCard,
     setStudyLevel,
+    setStudyLimit,
+    cloze,
+    clozeResult,
+    requestCloze,
+    answerCloze,
     saveNote,
     removeNote,
     toggleNoteStudy,

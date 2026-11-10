@@ -14,9 +14,12 @@ import {
   makeRoomCode,
   markOffline,
   normalizeCode,
+  answerClozeFor,
+  nextClozeFor,
   performAction,
   performStudyGrade,
   performStudyLevelChange,
+  performStudyLimitChange,
   placeMark,
   publicRoom,
   requestRematch,
@@ -431,10 +434,34 @@ function handleMessage(ws, raw) {
   }
 
   if (msg.type === 'study') {
+    if (msg.action === 'cloze') {
+      send(ws, { type: 'cloze', question: nextClozeFor(room, seat, now) });
+      return;
+    }
+
+    if (msg.action === 'clozeAnswer') {
+      const result = answerClozeFor(room, seat, msg.key, msg.choice, now);
+      if (result.ok) {
+        broadcast(room);
+        send(ws, {
+          type: 'clozeResult',
+          correct: result.correct,
+          answer: result.answer,
+          interval: result.interval,
+          iv: result.iv,
+        });
+      } else {
+        send(ws, { type: 'toast', code: 'study_invalid' });
+      }
+      return;
+    }
+
     const result =
       msg.action === 'level'
         ? performStudyLevelChange(room, seat, Number(msg.level), now)
-        : performStudyGrade(room, seat, msg.key ?? msg.word, msg.grade, now);
+        : msg.action === 'limit'
+          ? performStudyLimitChange(room, seat, Number(msg.limit), now)
+          : performStudyGrade(room, seat, msg.key ?? msg.word, msg.grade, now);
     if (result.ok) {
       broadcast(room);
     } else {
