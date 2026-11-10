@@ -616,7 +616,8 @@ export default function StudyPanel({
     (value) => {
       if (!card || !connected || pending) return;
       setPending(value);
-      onGrade(card.w, value);
+      // `key` carries the language prefix (fr:du); `w` alone only works for Chinese.
+      onGrade(card.key ?? card.w, value);
     },
     [card, connected, onGrade, pending],
   );

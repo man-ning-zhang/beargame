@@ -256,6 +256,10 @@ test('the French deck has A1-B1 levels and its own cards', () => {
   assert.equal(queue.length, 10);
   assert.ok(queue.every((card) => card.key.startsWith('fr:')));
   assert.ok(queue[0].m, 'French cards carry an English definition');
+  // The client must send `key`, not `w`: French keys are prefixed, so sending
+  // the bare word would come back as "card not in this deck".
+  assert.notEqual(queue[0].key, queue[0].w);
+  assert.ok(queue[0].key.startsWith('fr:'));
   assert.equal('p' in queue[0], false, 'no pinyin on French cards');
 
   const graded = gradeCard(fr, queue[0].key, 'good', T0);
