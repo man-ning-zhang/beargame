@@ -52,6 +52,19 @@ const zh = {
   'room.you': '你',
   'room.waiting': '等 TA',
   'room.soundOn': '打开声音',
+  'room.music': '背景音',
+  'room.music.off': '安静',
+  'room.music.rain': '雨声',
+  'room.music.fire': '篝火',
+  'room.music.lofi': 'Lo-fi Jazz',
+  'room.music.piano': '温柔钢琴',
+  'room.music.volume': '音量',
+  'room.music.group.ambient': '环境',
+  'room.music.group.synth': '合成',
+  'room.music.group.classical': '古典',
+  'room.music.satie': 'Satie · 吉诺佩蒂',
+  'room.music.mozart': 'Mozart · K.330',
+  'room.music.note': '古典录音来自 Wikimedia Commons（公有领域）；环境音与 Lo-fi 为浏览器实时合成。',
   'room.soundOff': '关闭声音',
   'room.leave': '离开',
   'room.leaveConfirm': '确定离开？',
@@ -342,8 +355,7 @@ const en = {
   'room.music.group.classical': 'Classical',
   'room.music.satie': 'Satie · Gymnopédie',
   'room.music.mozart': 'Mozart · K.330',
-  'room.music.credit': 'Classical recordings from Wikimedia Commons (public domain).',
-  'room.music.note': 'Ambience and lo-fi are synthesised live in your browser.',
+  'room.music.note': 'Classical recordings from Wikimedia Commons (public domain); ambience and lo-fi are synthesised live.',
   'room.soundOff': 'Turn sound off',
   'room.leave': 'Leave',
   'room.leaveConfirm': 'Leave for sure?',
@@ -570,7 +582,7 @@ const en = {
 
 export const LANGUAGES = ['zh', 'en'];
 
-const messages = { zh, en };
+export const messages = { zh, en };
 
 export function detectLanguage() {
   try {

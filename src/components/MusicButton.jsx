@@ -51,10 +51,11 @@ const Panel = styled.div`
   top: calc(100% + 8px);
   right: 0;
   z-index: 30;
-  width: 222px;
-  max-height: min(76vh, 430px);
+  width: 208px;
+  max-height: min(64vh, 340px);
+  overflow-x: hidden;
   overflow-y: auto;
-  padding: 12px;
+  padding: 11px 12px 9px;
   border-radius: 15px;
   background: rgba(43, 38, 56, 0.97);
   border: 1px solid rgba(255, 248, 236, 0.1);
@@ -62,7 +63,7 @@ const Panel = styled.div`
   animation: ${fade} 0.16s ease-out;
 
   h3 {
-    margin: 0 0 8px;
+    margin: 0 0 6px;
     color: rgba(255, 248, 236, 0.62);
     font-size: 9.5px;
     font-weight: 600;
@@ -71,7 +72,7 @@ const Panel = styled.div`
   }
 
   h4 {
-    margin: 8px 0 3px;
+    margin: 7px 0 2px;
     color: rgba(255, 248, 236, 0.32);
     font-size: 8px;
     font-weight: 600;
@@ -85,14 +86,17 @@ const Option = styled.button`
   align-items: center;
   gap: 7px;
   width: 100%;
-  height: 30px;
-  padding: 0 8px;
+  height: 27px;
+  padding: 0 7px;
   border: 0;
-  border-radius: 9px;
+  border-radius: 8px;
   background: ${(props) => (props.$active ? 'rgba(241, 185, 79, 0.16)' : 'transparent')};
   color: ${(props) => (props.$active ? palette.cream : 'rgba(255, 248, 236, 0.72)')};
-  font-size: 11px;
+  font-size: 10.5px;
   text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   cursor: pointer;
 
   .dot {
@@ -112,8 +116,8 @@ const VolumeRow = styled.label`
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 8px;
-  padding-top: 10px;
+  margin-top: 7px;
+  padding-top: 8px;
   border-top: 1px solid rgba(255, 248, 236, 0.09);
   color: rgba(255, 248, 236, 0.5);
   font-size: 9px;
@@ -125,10 +129,11 @@ const VolumeRow = styled.label`
 `;
 
 const Note = styled.p`
-  margin: 8px 0 0;
+  margin: 6px 0 0;
   color: rgba(255, 248, 236, 0.34);
-  font-size: 8.5px;
-  line-height: 1.5;
+  font-size: 8px;
+  line-height: 1.45;
+  word-break: break-word;
 `;
 
 const GROUPS = [
@@ -223,7 +228,6 @@ export default function MusicButton() {
             />
           </VolumeRow>
 
-          <Note>{t('room.music.credit')}</Note>
           <Note>{t('room.music.note')}</Note>
         </Panel>
       )}

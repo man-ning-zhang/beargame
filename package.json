@@ -9,11 +9,12 @@
     "server": "node --watch server/index.js",
     "build": "vite build",
     "start": "node server/index.js",
-    "test": "node --test server/game.test.js server/study.test.js",
+    "test": "node --test server/game.test.js server/study.test.js src/i18n.test.js",
     "lint": "eslint src server --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "data:hsk": "node scripts/build-hsk.mjs",
-    "data:examples": "node scripts/build-examples.mjs"
+    "data:examples": "node scripts/build-examples.mjs",
+    "data:french": "node scripts/build-french.mjs"
   },
   "dependencies": {
     "hanzi-writer": "^3.7.3",
