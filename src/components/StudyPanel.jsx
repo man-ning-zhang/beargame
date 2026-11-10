@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import styled, { css, keyframes } from 'styled-components';
 import { useI18n } from '../context/LanguageContext';
 import ClozePanel from './ClozePanel';
+import WritingModal from './WritingModal';
 import NotebookPanel from './NotebookPanel';
 import { speak, speechSupported } from '../utils/speech';
 import { breakpoints, palette } from '../theme';
@@ -397,6 +398,37 @@ const TapHint = styled.span`
   opacity: 0.8;
 `;
 
+const Write = styled.button`
+  position: absolute;
+  top: 10px;
+  right: 46px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(61, 47, 41, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.82);
+  font-size: 13px;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    background: #fff;
+  }
+
+  &:active {
+    transform: scale(0.94);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(232, 121, 95, 0.35);
+    outline-offset: 1px;
+  }
+`;
+
 const Speak = styled.button`
   position: absolute;
   top: 10px;
@@ -583,6 +615,7 @@ export default function StudyPanel({
   const card = study?.queue?.[0] ?? null;
   const notes = study?.notes ?? [];
   const [view, setView] = useState('cards');
+  const [writing, setWriting] = useState(false);
   const [revealed, setRevealed] = useState(false);
   const [pending, setPending] = useState('');
 
@@ -824,6 +857,19 @@ export default function StudyPanel({
                 )}
               </Back>
             </Flip>
+            {lang === 'zh' && /[\u3400-\u9fff]/.test(card.w) && (
+              <Write
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setWriting(true);
+                }}
+                aria-label={t('write.open', { word: card.w })}
+                title={t('write.open', { word: card.w })}
+              >
+                ✍️
+              </Write>
+            )}
             {canListen && (
               <Speak
                 type="button"
@@ -890,6 +936,8 @@ export default function StudyPanel({
 
         </>
       )}
+
+      {writing && card && <WritingModal word={card.w} onClose={() => setWriting(false)} />}
 
       {view === 'cards' && (
       <Foot $done={Boolean(study.partner?.done)}>

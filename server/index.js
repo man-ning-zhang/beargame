@@ -200,6 +200,18 @@ async function fetchMusic(kind, id) {
   };
 }
 
+const STROKE_CACHE = new Map();
+const STROKE_DATA_URL = 'https://cdn.jsdelivr.net/npm/hanzi-writer-data@2.0';
+
+async function fetchStroke(char) {
+  const response = await fetch(`${STROKE_DATA_URL}/${encodeURIComponent(char)}.json`, {
+    headers: { 'user-agent': 'bear-together/1.0 (personal flashcard project)' },
+    signal: AbortSignal.timeout(5000),
+  });
+  if (!response.ok) return null;
+  return response.json();
+}
+
 const server = http.createServer((req, res) => {
   res.setHeader('x-content-type-options', 'nosniff');
   res.setHeader('referrer-policy', 'same-origin');
@@ -207,6 +219,33 @@ const server = http.createServer((req, res) => {
 
   if (req.url === '/healthz') {
     jsonResponse(res, 200, { ok: true, rooms: rooms.size, uptime: Math.round(process.uptime()) });
+    return;
+  }
+
+  // Stroke-order data for one Chinese character, proxied so the browser never
+  // has to reach a CDN (which can be slow or blocked in China).
+  if (req.url.startsWith('/api/stroke/')) {
+    const char = decodeURIComponent(req.url.slice('/api/stroke/'.length)).trim();
+    if (!/^[\u3400-\u9fff]$/.test(char)) {
+      jsonResponse(res, 400, { ok: false });
+      return;
+    }
+    const cached = STROKE_CACHE.get(char);
+    if (cached) {
+      jsonResponse(res, 200, cached);
+      return;
+    }
+    fetchStroke(char)
+      .then((data) => {
+        if (!data) {
+          jsonResponse(res, 502, { ok: false });
+          return;
+        }
+        if (STROKE_CACHE.size > 4000) STROKE_CACHE.clear();
+        STROKE_CACHE.set(char, data);
+        jsonResponse(res, 200, data);
+      })
+      .catch(() => jsonResponse(res, 502, { ok: false }));
     return;
   }
 

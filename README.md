@@ -171,6 +171,7 @@ docker run -p 8787:8787 bear-together
 - **每天学多少你说了算**：底部「每天新词」可以选 10 / 20 / 50 / 不限；
 - **间隔重复**：每张卡可以选「再来一次 / 有点难 / 记住了」，服务器按 SM-2 的简化版安排下次出现时间，按钮上会直接写「3 天后」；
 - **点一点听发音**：用浏览器自带的语音（`speechSynthesis`，中文 `zh-CN` / 法语 `fr-FR`），不需要联网、不用下载音频；右上角的音效开关同时管它；
+- **笔顺 / 描红**（中文）：卡片右上角的 ✍️ 会打开写字窗——先看一遍笔顺动画（红色是当前这一笔），再切到「自己写」照着轮廓描，写对了自动进入下一笔，写错了会抖一下重来；多字词可以逐字切换；
 - **自己的词本**：把聊天里遇到的词加进去，填拼音、意思、备注和标签，标记一下就进入复习队列，并且排在词表新词前面；自建卡按语言分开，中文卡不会混进法语组；
 - **完形填空**（中法都有）：中间那个「填空」视图会从例句里挖掉一个词，四选一。中文只挑实词、空在句子中段、且目标词不是更长词的一部分；法语按整词匹配（避免 `ce` 命中 `commence`），冠词和介词也保留，因为那正是法语要练的；答对按「记住了」排期，答错立刻重来；
 - **笔记**：词本同时是笔记，支持搜索（字 / 拼音 / 意思 / 备注 / 标签）、编辑、删除；
@@ -183,6 +184,8 @@ docker run -p 8787:8787 bear-together
 - **中法例句**：<https://tatoeba.org>（CC BY 2.0 FR），中文繁体句子用 OpenCC 转成简体
 - **法语分级**：FLELex（Cental, UCLouvain），CEFR 分级词频
 - **法英释义**：FreeDict `fra-eng`（GPL v2+）
+- **汉字笔顺**：<https://github.com/chanind/hanzi-writer>（MIT）+ `hanzi-writer-data`
+  （数据来自 <https://github.com/skishore/makemeahanzi>，Arphic Public License）
 
 重新生成：`npm run data:hsk` → `npm run data:examples` → `npm run data:french`，
 输出到 `server/data/`，中文词库许可见 `server/data/LICENSE-hsk.txt`。
