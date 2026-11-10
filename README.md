@@ -222,6 +222,18 @@ Chaimovich / Musopen 演奏），都是公有领域，转成 96 kbps AAC 放在 
   结果缓存一小时，不碰任何账号；
 - `163cn.tv` 短链暂时不解析，会当普通链接显示。
 
+## 部署
+
+线上是 Render 的免费实例（<https://bear-together.onrender.com>）。自动部署有两种接法：
+
+1. **Render 自带**：服务 Settings → **Auto-Deploy** 选 **On Commit**（免费版也有；
+   如果那一栏根本没出现，说明仓库是用「Public Git repository」网址连的，
+   要改成 GitHub App 连接才会出现）
+2. **GitHub Action 兜底**：`.github/workflows/deploy.yml` 会在 push 到 main 时跑测试并
+   `curl` 一下 Render 的 Deploy Hook。只需要在 GitHub 仓库
+   Settings → Secrets and variables → Actions 里加一个 `RENDER_DEPLOY_HOOK_URL`
+   （值从 Render → 服务 → Settings → Deploy Hook 复制）。
+
 ## 房间号和数据会丢吗
 
 不会因为一次部署就丢掉房间号，也不会丢掉你自己的词本：
