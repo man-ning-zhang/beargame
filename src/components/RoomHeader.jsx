@@ -3,9 +3,11 @@ import styled, { keyframes } from 'styled-components';
 import { useRoom } from '../context/RoomContext';
 import { useI18n } from '../context/LanguageContext';
 import LanguageToggle from './LanguageToggle';
+import MusicButton from './MusicButton';
 import { initialOf, otherSeat } from '../gameConfig';
 import { breakpoints, palette } from '../theme';
 import { isMuted, toggleMuted } from '../utils/sound';
+import { setMusicMuted } from '../utils/music';
 
 const fade = keyframes`
   from { opacity: 0; transform: translateY(-6px); }
@@ -349,11 +351,15 @@ export default function RoomHeader() {
 
         <LanguageToggle />
 
+        <MusicButton />
+
         <IconButton
           type="button"
           onClick={() => {
             const next = toggleMuted();
             setMutedState(next);
+            // One switch for all sound: muting also silences the music.
+            setMusicMuted(next);
           }}
           title={muted ? t('room.soundOn') : t('room.soundOff')}
           aria-label={muted ? t('room.soundOn') : t('room.soundOff')}
