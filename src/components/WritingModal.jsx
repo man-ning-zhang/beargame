@@ -5,7 +5,7 @@ import styled, { keyframes } from 'styled-components';
 import { useI18n } from '../context/LanguageContext';
 import { palette, shadows } from '../theme';
 
-const SIZE = 190;
+const DEFAULT_SIZE = 190;
 
 const fade = keyframes`
   from { opacity: 0; }
@@ -96,7 +96,6 @@ const CharTabs = styled.div`
 const Stage = styled.div`
   display: grid;
   place-items: center;
-  height: ${SIZE + 20}px;
   border-radius: 14px;
   background: #fff;
   border: 1px solid rgba(61, 47, 41, 0.07);
@@ -155,28 +154,39 @@ const Status = styled.p`
   text-align: center;
 `;
 
-export default function WritingModal({ word, onClose }) {
+/**
+ * The stroke animation + tracing canvas for one word. Reused by the card
+ * pop-up and by the standalone writing tab.
+ */
+export function StrokeBoard({ word, size = DEFAULT_SIZE, autoPlay = true, onFinished }) {
   const { t } = useI18n();
   const chars = Array.from(String(word ?? '')).filter((char) => /[\u3400-\u9fff]/.test(char));
   const [index, setIndex] = useState(0);
-  const [mode, setMode] = useState('animate');
+  const [mode, setMode] = useState(autoPlay ? 'animate' : 'quiz');
   const [data, setData] = useState(null);
   const [status, setStatus] = useState('loading');
   const [done, setDone] = useState(false);
   const [runId, setRunId] = useState(0);
   const stageRef = useRef(null);
+  // Keep the callback in a ref: an inline prop would change identity on every
+  // parent render and rebuild the writer, restarting the animation mid-stroke.
+  const finishedRef = useRef(onFinished);
+  useEffect(() => {
+    finishedRef.current = onFinished;
+  }, [onFinished]);
 
   const char = chars[index];
 
+  // A new word starts again from its first character, animating.
   useEffect(() => {
-    const onKey = (event) => {
-      if (event.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+    setIndex(0);
+    setMode(autoPlay ? 'animate' : 'quiz');
+    setDone(false);
+    setRunId((value) => value + 1);
+  }, [word, autoPlay]);
 
   useEffect(() => {
+    if (!char) return undefined;
     let alive = true;
     setStatus('loading');
     setData(null);
@@ -197,11 +207,11 @@ export default function WritingModal({ word, onClose }) {
   }, [char]);
 
   useEffect(() => {
-    if (!data || !stageRef.current) return undefined;
+    if (!data || !stageRef.current || !char) return undefined;
     stageRef.current.innerHTML = '';
     const writer = HanziWriter.create(stageRef.current, char, {
-      width: SIZE,
-      height: SIZE,
+      width: size,
+      height: size,
       padding: 10,
       showOutline: true,
       charData: data,
@@ -214,7 +224,12 @@ export default function WritingModal({ word, onClose }) {
     });
 
     if (mode === 'quiz') {
-      writer.quiz({ onComplete: () => setDone(true) });
+      writer.quiz({
+        onComplete: () => {
+          setDone(true);
+          finishedRef.current?.();
+        },
+      });
     } else {
       writer.animateCharacter();
     }
@@ -226,7 +241,15 @@ export default function WritingModal({ word, onClose }) {
         // Nothing to cancel.
       }
     };
-  }, [data, mode, char, runId]);
+  }, [data, mode, char, runId, size]);
+
+  if (!chars.length) {
+    return (
+      <Stage>
+        <Hint>{t('write.error')}</Hint>
+      </Stage>
+    );
+  }
 
   const replay = () => {
     setDone(false);
@@ -240,54 +263,72 @@ export default function WritingModal({ word, onClose }) {
     setRunId((value) => value + 1);
   };
 
+  return (
+    <>
+      {chars.length > 1 && (
+        <CharTabs>
+          {chars.map((item, position) => (
+            <button
+              key={`${item}-${position}`}
+              type="button"
+              data-active={position === index}
+              onClick={() => {
+                setIndex(position);
+                setMode('animate');
+                setRunId((value) => value + 1);
+              }}
+              lang="zh-Hans"
+            >
+              {item}
+            </button>
+          ))}
+        </CharTabs>
+      )}
+
+      <Stage ref={stageRef} style={{ width: size + 20, height: size + 20 }}>
+        {status === 'loading' && <Hint>{t('write.loading')}</Hint>}
+        {status === 'error' && <Hint>{t('write.error')}</Hint>}
+      </Stage>
+
+      <Controls>
+        <ControlButton type="button" $active={mode === 'animate'} onClick={replay} disabled={status !== 'ready'}>
+          {t('write.watch')}
+        </ControlButton>
+        <ControlButton type="button" $active={mode === 'quiz'} onClick={startQuiz} disabled={status !== 'ready'}>
+          {t('write.try')}
+        </ControlButton>
+      </Controls>
+
+      <Status $done={done}>
+        {done ? t('write.done') : mode === 'quiz' ? t('write.hintQuiz') : t('write.hintWatch')}
+      </Status>
+    </>
+  );
+}
+
+export default function WritingModal({ word, onClose }) {
+  const { t } = useI18n();
+
+  useEffect(() => {
+    const onKey = (event) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   // The sidebar uses backdrop-filter, which makes `position: fixed` resolve
   // against it; a portal keeps the dialog centred on the viewport.
   return createPortal(
     <Backdrop onClick={onClose} role="presentation">
       <Panel onClick={(event) => event.stopPropagation()} role="dialog" aria-label={t('write.title')}>
         <Head>
-          <strong lang="zh-Hans">{char}</strong>
+          <strong>{t('write.title')}</strong>
           <button type="button" onClick={onClose} aria-label={t('write.close')}>
             ×
           </button>
         </Head>
-
-        {chars.length > 1 && (
-          <CharTabs>
-            {chars.map((item, position) => (
-              <button
-                key={`${item}-${position}`}
-                type="button"
-                data-active={position === index}
-                onClick={() => {
-                  setIndex(position);
-                  setMode('animate');
-                }}
-                lang="zh-Hans"
-              >
-                {item}
-              </button>
-            ))}
-          </CharTabs>
-        )}
-
-        <Stage ref={stageRef}>
-          {status === 'loading' && <Hint>{t('write.loading')}</Hint>}
-          {status === 'error' && <Hint>{t('write.error')}</Hint>}
-        </Stage>
-
-        <Controls>
-          <ControlButton type="button" $active={mode === 'animate'} onClick={replay} disabled={status !== 'ready'}>
-            {t('write.watch')}
-          </ControlButton>
-          <ControlButton type="button" $active={mode === 'quiz'} onClick={startQuiz} disabled={status !== 'ready'}>
-            {t('write.try')}
-          </ControlButton>
-        </Controls>
-
-        <Status $done={done}>
-          {done ? t('write.done') : mode === 'quiz' ? t('write.hintQuiz') : t('write.hintWatch')}
-        </Status>
+        <StrokeBoard word={word} autoPlay />
       </Panel>
     </Backdrop>,
     document.body,

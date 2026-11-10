@@ -3,6 +3,7 @@ import styled, { css, keyframes } from 'styled-components';
 import { useI18n } from '../context/LanguageContext';
 import ClozePanel from './ClozePanel';
 import WritingModal from './WritingModal';
+import WritingPanel from './WritingPanel';
 import NotebookPanel from './NotebookPanel';
 import { speak, speechSupported } from '../utils/speech';
 import { breakpoints, palette } from '../theme';
@@ -736,6 +737,15 @@ export default function StudyPanel({
         <SwitchButton
           type="button"
           role="tab"
+          aria-selected={view === 'write'}
+          $active={view === 'write'}
+          onClick={() => setView('write')}
+        >
+          {t('study.view.write')}
+        </SwitchButton>
+        <SwitchButton
+          type="button"
+          role="tab"
           aria-selected={view === 'notes'}
           $active={view === 'notes'}
           onClick={() => setView('notes')}
@@ -745,7 +755,9 @@ export default function StudyPanel({
         </SwitchButton>
       </ViewSwitch>
 
-      {view === 'cloze' ? (
+      {view === 'write' ? (
+        <WritingPanel cards={study.queue ?? []} lang={lang} />
+      ) : view === 'cloze' ? (
         <ClozePanel
           question={cloze && cloze.lang === lang ? cloze : null}
           result={clozeResult}
