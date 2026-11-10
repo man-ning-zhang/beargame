@@ -594,7 +594,9 @@ export default function Scene({ room, me, bubble, reaction, onPet, connected }) 
               {bubble.emote}
             </span>
           ) : (
-            <span className="bubble-text">{bubble.text}</span>
+            <span className="bubble-text">
+              {bubble.text || (bubble.music ? t('scene.sharedSong') : '')}
+            </span>
           )}
         </Bubble>
       )}

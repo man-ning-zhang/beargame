@@ -336,6 +336,28 @@ export function performAction(room, seat, actionId, now = Date.now()) {
   return { ok: true, entry };
 }
 
+/**
+ * NetEase Cloud Music share links, e.g.
+ *   https://music.163.com/song?id=123
+ *   https://y.music.163.com/m/song?id=123&uct2=...
+ *   https://music.163.com/#/playlist?id=123
+ */
+const NETEASE_QUERY = /https?:\/\/(?:y\.)?music\.163\.com\/(?:m\/)?(?:#\/)?(song|playlist|album)\?(?:[^\s#]*?&)?id=(\d{1,20})(?:[&?#][^\s]*)?/i;
+const NETEASE_PATH = /https?:\/\/(?:y\.)?music\.163\.com\/(?:m\/)?(?:#\/)?(song|playlist|album)\/(\d{1,20})(?:[&?#][^\s]*)?/i;
+
+export function parseMusicLink(text) {
+  const value = String(text ?? '');
+  const match = value.match(NETEASE_QUERY) || value.match(NETEASE_PATH);
+  if (!match) return null;
+  return {
+    provider: 'netease',
+    kind: match[1].toLowerCase(),
+    id: match[2],
+    url: `https://music.163.com/${match[1].toLowerCase()}?id=${match[2]}`,
+    matched: match[0],
+  };
+}
+
 export function addChat(room, seat, { text, emote } = {}, now = Date.now()) {
   const player = room.seats[seat];
   if (!player || !player.online) return { ok: false, error: 'invalid' };
@@ -345,16 +367,23 @@ export function addChat(room, seat, { text, emote } = {}, now = Date.now()) {
   const cleanEmote = typeof emote === 'string' && emote.length <= 8 ? emote : '';
   if (!cleanText && !cleanEmote) return { ok: false, error: 'empty' };
 
+  const music = parseMusicLink(cleanText);
+  // When the message is just the share link, the player card replaces it.
+  const textOnly = music ? cleanText.replace(music.matched, '').trim() : cleanText;
+
   player.lastChatAt = now;
   const message = {
     id: room.seq++,
     at: now,
     seat,
     name: player.name,
-    text: cleanText,
+    text: textOnly,
     emote: cleanEmote,
     kind: 'chat',
   };
+  if (music) {
+    message.music = { provider: music.provider, kind: music.kind, id: music.id, url: music.url };
+  }
   room.chat.push(message);
   if (room.chat.length > MAX_CHAT) room.chat = room.chat.slice(-MAX_CHAT);
   room.lastActive = now;

@@ -42,6 +42,7 @@ const TOAST_KEYS = {
   game_in_progress: 'toast.gameInProgress',
   study_invalid: 'study.invalid',
   note_invalid: 'note.saveFailed',
+  level_invalid: 'study.levelInvalid',
   note_full: 'note.full',
 };
 
@@ -505,7 +506,9 @@ export function RoomProvider({ children }) {
   const setStudyLevel = useCallback(
     (level) => {
       if (!inRoomRef.current) return false;
-      return sendRaw({ type: 'study', action: 'level', level: Number(level) });
+      // Levels are numbers for HSK (1-6) and strings for DELF (A1-B1), so pass
+      // the value through untouched.
+      return sendRaw({ type: 'study', action: 'level', level });
     },
     [sendRaw],
   );

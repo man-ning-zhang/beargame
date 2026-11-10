@@ -208,6 +208,115 @@ const Bubble = styled.div`
   }
 `;
 
+const MusicCard = styled.a`
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 7px;
+  padding: 8px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(61, 47, 41, 0.07);
+  text-decoration: none;
+  color: ${palette.ink};
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 16px -14px rgba(61, 47, 41, 0.7);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(232, 121, 95, 0.35);
+    outline-offset: 1px;
+  }
+
+  .cover {
+    display: grid;
+    place-items: center;
+    width: 46px;
+    height: 46px;
+    flex: none;
+    border-radius: 9px;
+    overflow: hidden;
+    background: rgba(61, 47, 41, 0.06);
+    font-size: 18px;
+  }
+
+  .cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+  }
+
+  .info strong {
+    font-size: 11.5px;
+    font-weight: 700;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .info small {
+    color: ${palette.muted};
+    font-size: 9.5px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .info em {
+    margin-top: 2px;
+    color: ${palette.coralDeep};
+    font-size: 9px;
+    font-style: normal;
+    font-weight: 600;
+  }
+`;
+
+function SongCard({ music }) {
+  const { t } = useI18n();
+  const [meta, setMeta] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    const query = `kind=${encodeURIComponent(music.kind)}&id=${encodeURIComponent(music.id)}`;
+    fetch(`/api/music?${query}`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (alive && data?.ok) setMeta(data);
+      })
+      .catch(() => {
+        // The link still works; we just show less.
+      });
+    return () => {
+      alive = false;
+    };
+  }, [music.kind, music.id]);
+
+  return (
+    <MusicCard href={music.url} target="_blank" rel="noreferrer noopener">
+      <span className="cover" aria-hidden="true">
+        {meta?.cover ? <img src={meta.cover} alt="" loading="lazy" /> : '🎵'}
+      </span>
+      <span className="info">
+        <strong>{meta?.title ?? t('chat.music.loading')}</strong>
+        <small>{meta?.subtitle || (music.kind === 'song' ? t('chat.music.song') : music.kind)}</small>
+        <em>{t('chat.music.open')} ↗</em>
+      </span>
+    </MusicCard>
+  );
+}
+
 const Composer = styled.form`
   padding-top: 12px;
   border-top: 1px solid ${palette.line};
@@ -422,6 +531,7 @@ export default function ChatPanel({ room, me, connected, onSend }) {
                       </span>
                     )}
                     {message.text && <span className="text">{message.text}</span>}
+                    {message.music && <SongCard music={message.music} />}
                   </Bubble>
                 </Stack>
               </Row>

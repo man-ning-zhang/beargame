@@ -292,3 +292,16 @@ test('switching language resets the level but keeps both decks apart', () => {
   assert.equal(restored.level, 'A2');
   assert.ok(restored.cards['fr:maison']);
 });
+
+test('French cards can be quizzed with a fill-in-the-blank too', () => {
+  const fr = createStudyState('fr');
+  const question = nextCloze(fr, T0);
+  assert.ok(question, 'the French deck has example sentences');
+  assert.equal(question.options.length, 4);
+  assert.ok(question.prompt.includes('＿＿'));
+  assert.equal(typeof question.l, 'string', 'DELF level, not a number');
+  assert.equal('p' in question, false, 'no pinyin on French questions');
+
+  const graded = gradeCloze(fr, question.key, question.answer, T0);
+  assert.equal(graded.correct, true);
+});

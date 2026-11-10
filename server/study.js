@@ -443,16 +443,17 @@ export function nextCloze(study, now = Date.now(), extras = []) {
   const rec = study.cards[card.key];
   const base = rec ?? { ease: START_EASE, interval: 0, reps: 0 };
 
-  return {
+  const question = {
     key: card.key,
     prompt: card.s,
     answer: card.w,
     options,
-    p: card.p,
     m: card.m,
     l: card.l,
     iv: [nextInterval(base, 'hard'), nextInterval(base, 'good')],
   };
+  if (card.p) question.p = card.p;
+  return question;
 }
 
 /** Answering a cloze is a real review: right → "good", wrong → "again". */

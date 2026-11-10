@@ -8,6 +8,7 @@ import {
   joinRoom,
   markOffline,
   normalizeCode,
+  parseMusicLink,
   applyPersonal,
   changeNote,
   performAction,
@@ -327,4 +328,35 @@ test('junk in a personal payload is dropped instead of trusted', () => {
   assert.equal(personal.study.cards['的'].interval, 365);
   assert.equal(personal.notes.length, 1);
   assert.equal(personal.notes[0].w, '好');
+});
+
+test('turns a NetEase share link into a player card', () => {
+  const { room } = roomWithPair();
+
+  const alone = addChat(room, 'host', { text: '  https://music.163.com/song?id=1234567  ' }, T0 + 1000);
+  assert.equal(alone.ok, true);
+  assert.deepEqual(alone.message.music, {
+    provider: 'netease',
+    kind: 'song',
+    id: '1234567',
+    url: 'https://music.163.com/song?id=1234567',
+  });
+  assert.equal(alone.message.text, '', 'the raw link is replaced by the card');
+
+  const withWords = addChat(room, 'guest', { text: '听这个 https://y.music.163.com/m/song?id=88&uct2=x' }, T0 + 2000);
+  assert.equal(withWords.message.text, '听这个');
+  assert.equal(withWords.message.music.id, '88');
+
+  // Other links and broken ids stay plain text.
+  assert.equal(parseMusicLink('https://example.com/song?id=1'), null);
+  assert.equal(parseMusicLink('https://music.163.com/song?id=abc'), null);
+  const plain = addChat(room, 'host', { text: 'https://example.com/watch?v=1' }, T0 + 3000);
+  assert.equal(plain.message.music, undefined);
+  assert.equal(plain.message.text, 'https://example.com/watch?v=1');
+});
+
+test('parses mobile, hash and path style shares', () => {
+  assert.equal(parseMusicLink('https://music.163.com/#/playlist?id=789').kind, 'playlist');
+  assert.equal(parseMusicLink('https://music.163.com/album/321').id, '321');
+  assert.equal(parseMusicLink('https://y.music.163.com/m/song?id=456').id, '456');
 });

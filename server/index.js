@@ -158,6 +158,48 @@ function serveStatic(req, res) {
   });
 }
 
+const MUSIC_CACHE = new Map();
+const MUSIC_UA =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36';
+
+async function fetchMusic(kind, id) {
+  const endpoint =
+    kind === 'album'
+      ? `https://music.163.com/api/album/${id}`
+      : kind === 'playlist'
+        ? `https://music.163.com/api/playlist/detail?id=${id}`
+        : `https://music.163.com/api/song/detail?ids=%5B${id}%5D`;
+
+  const response = await fetch(endpoint, {
+    headers: { 'user-agent': MUSIC_UA, referer: 'https://music.163.com/' },
+    signal: AbortSignal.timeout(5000),
+  });
+  if (!response.ok) return null;
+  const data = await response.json();
+
+  if (kind === 'album' && data.album) {
+    return {
+      title: data.album.name,
+      subtitle: data.album.artist?.name ?? '',
+      cover: data.album.picUrl ?? '',
+    };
+  }
+  if (kind === 'playlist' && data.playlist) {
+    return {
+      title: data.playlist.name,
+      subtitle: `${data.playlist.trackCount ?? 0} 首`,
+      cover: data.playlist.coverImgUrl ?? '',
+    };
+  }
+  const song = data.songs?.[0];
+  if (!song) return null;
+  return {
+    title: song.name,
+    subtitle: (song.artists ?? []).map((artist) => artist.name).join(' / '),
+    cover: song.album?.picUrl ?? '',
+  };
+}
+
 const server = http.createServer((req, res) => {
   res.setHeader('x-content-type-options', 'nosniff');
   res.setHeader('referrer-policy', 'same-origin');
@@ -165,6 +207,38 @@ const server = http.createServer((req, res) => {
 
   if (req.url === '/healthz') {
     jsonResponse(res, 200, { ok: true, rooms: rooms.size, uptime: Math.round(process.uptime()) });
+    return;
+  }
+
+  // Song metadata for shared NetEase links. NetEase has no public API and
+  // blocks browser CORS, so the server looks it up and caches the answer.
+  if (req.url.startsWith('/api/music')) {
+    const params = new URL(req.url, 'http://localhost').searchParams;
+    const kind = ['song', 'album', 'playlist'].includes(params.get('kind'))
+      ? params.get('kind')
+      : 'song';
+    const id = String(params.get('id') ?? '');
+    if (!/^\d{1,20}$/.test(id)) {
+      jsonResponse(res, 400, { ok: false });
+      return;
+    }
+    const key = `${kind}:${id}`;
+    const cached = MUSIC_CACHE.get(key);
+    if (cached && Date.now() - cached.at < 60 * 60 * 1000) {
+      jsonResponse(res, 200, { ok: true, ...cached.data });
+      return;
+    }
+    fetchMusic(kind, id)
+      .then((data) => {
+        if (!data) {
+          jsonResponse(res, 502, { ok: false });
+          return;
+        }
+        if (MUSIC_CACHE.size > 400) MUSIC_CACHE.clear();
+        MUSIC_CACHE.set(key, { at: Date.now(), data });
+        jsonResponse(res, 200, { ok: true, ...data });
+      })
+      .catch(() => jsonResponse(res, 502, { ok: false }));
     return;
   }
 
@@ -468,7 +542,10 @@ function handleMessage(ws, raw) {
     if (result.ok) {
       broadcast(room);
     } else {
-      send(ws, { type: 'toast', code: 'study_invalid' });
+      send(ws, {
+        type: 'toast',
+        code: msg.action === 'level' ? 'level_invalid' : 'study_invalid',
+      });
     }
     return;
   }

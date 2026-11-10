@@ -216,12 +216,14 @@ export default function ClozePanel({ question, result, connected, onRequest, onA
   }
 
   const [before, after] = String(question.prompt).split('＿＿');
+  // HSK levels are numbers, DELF levels are strings.
+  const textLang = typeof question.l === 'number' ? 'zh-Hans' : 'fr';
 
   return (
     <Wrap>
       <Hint>{t('cloze.hint')}</Hint>
 
-      <Sentence lang="zh-Hans">
+      <Sentence lang={textLang}>
         {before}
         <Blank aria-label={t('cloze.blank')}>{answered ? question.answer : '　'}</Blank>
         {after}
@@ -238,7 +240,7 @@ export default function ClozePanel({ question, result, connected, onRequest, onA
             <Option
               key={option}
               type="button"
-              lang="zh-Hans"
+              lang={textLang}
               $state={state}
               disabled={answered || !connected}
               onClick={() => {
@@ -257,7 +259,7 @@ export default function ClozePanel({ question, result, connected, onRequest, onA
         <Feedback $right={right} role="status">
           <strong>{right ? t('cloze.correct') : t('cloze.wrong', { answer: question.answer })}</strong>
           <span className="detail">
-            {question.p} · {question.m}
+            {question.p ? `${question.p} · ${question.m}` : question.m}
             {result ? ` · ${t('cloze.nextIn', { when: formatWhen(result.interval, t) })}` : ''}
           </span>
         </Feedback>
