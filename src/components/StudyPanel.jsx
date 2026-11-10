@@ -594,6 +594,11 @@ export default function StudyPanel({
 
   // Ask for a question when the cloze view opens (once, not in a loop).
   const clozeAsked = useRef(false);
+  // Switching language or level invalidates the question that is on screen.
+  useEffect(() => {
+    clozeAsked.current = false;
+  }, [study?.lang, study?.level]);
+
   useEffect(() => {
     if (view !== 'cloze') {
       clozeAsked.current = false;
@@ -602,7 +607,7 @@ export default function StudyPanel({
     if (cloze || clozeAsked.current) return;
     clozeAsked.current = true;
     onRequestCloze();
-  }, [view, cloze, onRequestCloze]);
+  }, [view, cloze, onRequestCloze, study?.lang, study?.level]);
 
   useEffect(() => {
     if (!pending) return undefined;
@@ -709,7 +714,7 @@ export default function StudyPanel({
 
       {view === 'cloze' ? (
         <ClozePanel
-          question={cloze}
+          question={cloze && cloze.lang === lang ? cloze : null}
           result={clozeResult}
           connected={connected}
           onRequest={onRequestCloze}

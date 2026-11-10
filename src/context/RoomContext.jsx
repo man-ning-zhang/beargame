@@ -148,6 +148,7 @@ export function RoomProvider({ children }) {
   const [toast, setToast] = useState(null);
   const [cloze, setCloze] = useState(null);
   const [clozeResult, setClozeResult] = useState(null);
+  const studyKeyRef = useRef('');
   const [lastRoom, setLastRoom] = useState(readStorage(KEYS.room) || '');
   const [initialCode, setInitialCode] = useState(urlCode || readStorage(KEYS.room) || '');
 
@@ -243,6 +244,15 @@ export function RoomProvider({ children }) {
             incoming.study.notes = picked.notes ?? [];
           } else if (incoming.study) {
             incoming.study.notes = readPersonal()?.notes ?? [];
+          }
+
+          // A question belongs to one deck: drop it when the language or level
+          // changes, otherwise a Chinese sentence can survive into French.
+          const studyKey = `${incoming.study?.lang ?? ''}:${incoming.study?.level ?? ''}`;
+          if (studyKeyRef.current !== studyKey) {
+            studyKeyRef.current = studyKey;
+            setCloze(null);
+            setClozeResult(null);
           }
 
           setRoom(incoming);

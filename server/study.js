@@ -445,6 +445,7 @@ export function nextCloze(study, now = Date.now(), extras = []) {
 
   const question = {
     key: card.key,
+    lang: study.lang,
     prompt: card.s,
     answer: card.w,
     options,

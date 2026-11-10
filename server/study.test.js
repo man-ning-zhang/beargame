@@ -226,6 +226,7 @@ test('cloze questions offer four options including the answer', () => {
   const study = createStudyState(1);
   const question = nextCloze(study, T0);
   assert.ok(question, 'HSK 1 has sentences to blank');
+  assert.equal(question.lang, 'zh');
   assert.equal(question.options.length, 4);
   assert.ok(question.options.includes(question.answer));
   assert.ok(question.prompt.includes('＿＿'));
@@ -300,6 +301,7 @@ test('French cards can be quizzed with a fill-in-the-blank too', () => {
   assert.equal(question.options.length, 4);
   assert.ok(question.prompt.includes('＿＿'));
   assert.equal(typeof question.l, 'string', 'DELF level, not a number');
+  assert.equal(question.lang, 'fr', 'questions carry their deck, so the UI can drop stale ones');
   assert.equal('p' in question, false, 'no pinyin on French questions');
 
   const graded = gradeCloze(fr, question.key, question.answer, T0);
