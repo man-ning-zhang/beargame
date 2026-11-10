@@ -33,6 +33,13 @@ let bar = 0;
 const TRACKS = {
   satie: { src: '/music/gymnopedie.m4a', title: 'Gymnopédie No. 1', composer: 'Erik Satie' },
   mozart: { src: '/music/mozart-k330-3.m4a', title: 'Piano Sonata K.330 · III', composer: 'W. A. Mozart' },
+  chopinNocturne: {
+    src: '/music/chopin-nocturne-b49.m4a',
+    title: 'Nocturne B.49',
+    composer: 'Frédéric Chopin',
+  },
+  chopinWaltz: { src: '/music/chopin-waltz-e-minor.m4a', title: 'Waltz in E minor', composer: 'Frédéric Chopin' },
+  chopinCanon: { src: '/music/chopin-canon-f-minor.m4a', title: 'Canon in F minor', composer: 'Frédéric Chopin' },
 };
 
 const STATIONS = ['off', 'rain', 'fire', 'lofi', 'piano', ...Object.keys(TRACKS)];

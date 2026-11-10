@@ -139,7 +139,10 @@ const Note = styled.p`
 const GROUPS = [
   { title: 'room.music.group.ambient', items: ['off', 'rain', 'fire'] },
   { title: 'room.music.group.synth', items: ['lofi', 'piano'] },
-  { title: 'room.music.group.classical', items: ['satie', 'mozart'] },
+  {
+    title: 'room.music.group.classical',
+    items: ['satie', 'mozart', 'chopinNocturne', 'chopinWaltz', 'chopinCanon'],
+  },
 ];
 
 const LABELS = {
@@ -150,6 +153,9 @@ const LABELS = {
   piano: 'room.music.piano',
   satie: 'room.music.satie',
   mozart: 'room.music.mozart',
+  chopinNocturne: 'room.music.chopinNocturne',
+  chopinWaltz: 'room.music.chopinWaltz',
+  chopinCanon: 'room.music.chopinCanon',
 };
 
 export default function MusicButton() {

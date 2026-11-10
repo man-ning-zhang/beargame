@@ -199,7 +199,7 @@ docker run -p 8787:8787 bear-together
 
 - **环境**：安静 / 雨声 / 篝火 —— Web Audio 实时合成
 - **合成**：Lo-fi Jazz / 温柔钢琴 —— 实时生成的鼓、贝斯、和弦
-- **古典**：Satie《吉诺佩蒂》/ Mozart K.330 第三乐章 —— 公有领域录音
+- **古典**：Satie《吉诺佩蒂》、Mozart K.330 第三乐章、Chopin 夜曲 B.49 / 圆舞曲 B.56 / 卡农 —— 公有领域或 CC0 录音
 
 切换时会把旧的音符和音频一起停掉（并做 0.12 秒淡出），不会两层声音叠在一起。
 
@@ -208,7 +208,8 @@ docker run -p 8787:8787 bear-together
 也不假装是。
 
 古典录音来自 Wikimedia Commons（Satie 由 Michael Laucke 演奏，Mozart 由 Vadim
-Chaimovich / Musopen 演奏），都是公有领域，转成 96 kbps AAC 放在 `public/music/`。
+Chaimovich / Musopen 演奏，Chopin 三首标注为 Public Domain / CC0），转成 96 kbps
+AAC 放在 `public/music/`，全部加起来约 10MB。
 
 ## 分享音乐
 
