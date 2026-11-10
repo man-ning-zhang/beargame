@@ -15,6 +15,10 @@ const KEYS = {
   token: 'bearTogether.token',
   name: 'bearTogether.name',
   room: 'bearTogether.room',
+  // The browser is the master copy of everything that is "yours": study
+  // progress, your own cards, your notes. The server only holds it while you
+  // are in the room, so a redeploy cannot take it away.
+  personal: 'bearTogether.personal',
 };
 
 const ERROR_KEYS = {
@@ -36,6 +40,9 @@ const TOAST_KEYS = {
   game_waiting: 'toast.gameWaiting',
   game_not_turn: 'toast.gameNotTurn',
   game_in_progress: 'toast.gameInProgress',
+  study_invalid: 'study.invalid',
+  note_invalid: 'note.saveFailed',
+  note_full: 'note.full',
 };
 
 function readStorage(key) {
@@ -76,6 +83,30 @@ function cleanCode(raw) {
   const text = String(raw ?? '').trim();
   const link = text.match(/[?&]room=([A-Za-z0-9]{4,10})/i);
   return (link ? link[1] : text).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
+}
+
+function readPersonal() {
+  try {
+    const raw = window.localStorage.getItem(KEYS.personal);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (!data || typeof data !== 'object') return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function writePersonal(data) {
+  try {
+    window.localStorage.setItem(KEYS.personal, JSON.stringify(data));
+  } catch {
+    // Storage full or disabled: the session still works, just without memory.
+  }
+}
+
+function savedAtOf(personal) {
+  return Number(personal?.savedAt) || 0;
 }
 
 function codeFromUrl() {
@@ -167,6 +198,16 @@ export function RoomProvider({ children }) {
       switch (message.type) {
         case 'joined': {
           const reconnecting = inRoomRef.current;
+          const saved = readPersonal();
+          if (saved) {
+            // Hand our copy back to the server, stamped so the empty snapshot
+            // the server is about to send cannot overwrite it. The server keeps
+            // whichever is newer, so this is also how a redeploy is undone.
+            const stamped = { ...saved, savedAt: Date.now() };
+            writePersonal(stamped);
+            sendRaw({ type: 'personal', data: stamped });
+          }
+          if (message.reborn) showToast('room.reborn');
           inRoomRef.current = true;
           setMe(message.seat);
           setConnected(true);
@@ -186,9 +227,24 @@ export function RoomProvider({ children }) {
         case 'state': {
           if (!message.room) return;
           inRoomRef.current = true;
-          setRoom(message.room);
+          const incoming = message.room;
+          const fromServer = incoming.study?.personal ?? null;
+
+          if (fromServer) {
+            const local = readPersonal();
+            // Newer wins: after a redeploy the server starts empty (savedAt 0),
+            // so the browser's copy is adopted; a fresher server copy (another
+            // tab or device) wins over a stale local one.
+            const picked = local && savedAtOf(fromServer) < savedAtOf(local) ? local : fromServer;
+            writePersonal(picked);
+            incoming.study.notes = picked.notes ?? [];
+          } else if (incoming.study) {
+            incoming.study.notes = readPersonal()?.notes ?? [];
+          }
+
+          setRoom(incoming);
           setStatus('room');
-          setClockOffset(message.room.serverTime - Date.now());
+          setClockOffset(incoming.serverTime - Date.now());
           break;
         }
         case 'left': {
@@ -250,7 +306,7 @@ export function RoomProvider({ children }) {
           break;
       }
     },
-    [showToast],
+    [sendRaw, showToast],
   );
 
   const openSocket = useCallback(() => {
@@ -415,6 +471,52 @@ export function RoomProvider({ children }) {
     return sendRaw({ type: 'rematch' });
   }, [sendRaw]);
 
+  const gradeCard = useCallback(
+    (key, grade) => {
+      if (!inRoomRef.current) return false;
+      const payload = { type: 'study', action: 'grade', key: String(key ?? ''), grade };
+      if (!sendRaw(payload)) {
+        showToast('toast.reconnecting');
+        return false;
+      }
+      return true;
+    },
+    [sendRaw, showToast],
+  );
+
+  const setStudyLevel = useCallback(
+    (level) => {
+      if (!inRoomRef.current) return false;
+      return sendRaw({ type: 'study', action: 'level', level: Number(level) });
+    },
+    [sendRaw],
+  );
+
+  const saveNote = useCallback(
+    (note) => {
+      if (!inRoomRef.current) return false;
+      const action = note?.id ? 'update' : 'add';
+      return sendRaw({ type: 'note', action, payload: note });
+    },
+    [sendRaw],
+  );
+
+  const removeNote = useCallback(
+    (id) => {
+      if (!inRoomRef.current) return false;
+      return sendRaw({ type: 'note', action: 'remove', payload: { id } });
+    },
+    [sendRaw],
+  );
+
+  const toggleNoteStudy = useCallback(
+    (id, study) => {
+      if (!inRoomRef.current) return false;
+      return sendRaw({ type: 'note', action: 'study', payload: { id, study } });
+    },
+    [sendRaw],
+  );
+
   const clearNotice = useCallback(() => setNotice(''), []);
 
   const value = {
@@ -435,6 +537,11 @@ export function RoomProvider({ children }) {
     sendChat,
     makeMove,
     rematch,
+    gradeCard,
+    setStudyLevel,
+    saveNote,
+    removeNote,
+    toggleNoteStudy,
     clearNotice,
     showToast,
   };

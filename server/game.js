@@ -3,6 +3,24 @@
  * No networking lives here so it can be unit-tested directly.
  */
 
+import {
+  DAILY_GOAL,
+  createStudyState,
+  gradeCard,
+  rollStudyDay,
+  sanitizeStudyState,
+  setStudyLevel,
+  studySummary,
+  studyView,
+} from './study.js';
+import {
+  noteCards,
+  removeNote,
+  sanitizeNotes,
+  toggleNoteStudy,
+  upsertNote,
+} from './notebook.js';
+
 export const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const SEAT_GRACE_MS = 5 * 60 * 1000;
 
@@ -113,6 +131,15 @@ function freshGame(starter = 'host', round = 1, scores = { host: 0, guest: 0 }) 
   };
 }
 
+/**
+ * Everything that belongs to one player and survives a redeploy: study
+ * progress, their own cards, and their notes. The browser keeps the master copy
+ * in localStorage; the room only holds it while they are here.
+ */
+export function createPersonal() {
+  return { savedAt: 0, rev: 0, updatedAt: 0, study: createStudyState(), notes: [] };
+}
+
 export function createRoom(code, now = Date.now()) {
   return {
     code,
@@ -125,6 +152,8 @@ export function createRoom(code, now = Date.now()) {
     log: [],
     chat: [],
     game: freshGame(),
+    // Each player studies at their own pace; progress lives with the seat.
+    personal: { host: createPersonal(), guest: createPersonal() },
     seq: 1,
   };
 }
@@ -192,6 +221,8 @@ export function joinRoom(room, { name, token, now = Date.now() } = {}) {
   if (replaced) {
     // A different pair is now in the room; start their scoreboard from scratch.
     room.game = freshGame('host');
+    // Someone else is sitting here now, so the old deck progress goes too.
+    room.personal[seat] = createPersonal();
   }
   room.seats[seat] = {
     token: safeToken,
@@ -227,6 +258,7 @@ export function vacateSeat(room, seat, now = Date.now()) {
   if (!room.seats[seat]) return false;
   room.seats[seat] = null;
   room.game = freshGame('host');
+  room.personal[seat] = createPersonal();
   room.lastActive = now;
   return true;
 }
@@ -381,6 +413,101 @@ export function requestRematch(room, seat, now = Date.now()) {
   return { ok: true, game: room.game };
 }
 
+/**
+ * Grade a flashcard. Each player's deck progress is their own, but crossing the
+ * daily goal warms the bear — learning together is part of looking after it.
+ */
+export function performStudyGrade(room, seat, key, grade, now = Date.now()) {
+  const player = room.seats[seat];
+  const personal = room.personal?.[seat];
+  if (!player || !player.online || !personal) return { ok: false, error: 'invalid' };
+
+  const study = personal.study;
+  const extras = noteCards(personal.notes);
+  rollStudyDay(study, now);
+  const before = study.reviewedToday;
+  const result = gradeCard(study, key, grade, now, extras);
+  if (!result.ok) return result;
+
+  bumpPersonal(personal, now);
+
+  if (before < DAILY_GOAL && study.reviewedToday >= DAILY_GOAL) {
+    room.stats.bond = clamp(room.stats.bond + 2, 0, 999);
+    addSystemChat(room, 'studyGoal', { name: player.name }, now);
+
+    const partnerPersonal = room.personal[opponentOf(seat)];
+    if (partnerPersonal) rollStudyDay(partnerPersonal.study, now);
+    if (partnerPersonal && partnerPersonal.study.reviewedToday >= DAILY_GOAL) {
+      room.stats.bond = clamp(room.stats.bond + 2, 0, 999);
+      addSystemChat(room, 'studyTogether', {}, now);
+    }
+  }
+
+  room.lastActive = now;
+  return result;
+}
+
+export function performStudyLevelChange(room, seat, level, now = Date.now()) {
+  const personal = room.personal?.[seat];
+  if (!room.seats[seat]?.online || !personal) return { ok: false, error: 'invalid' };
+  const result = setStudyLevel(personal.study, level);
+  if (result.ok) {
+    bumpPersonal(personal, now);
+    room.lastActive = now;
+  }
+  return result;
+}
+
+function bumpPersonal(personal, now) {
+  personal.rev += 1;
+  personal.updatedAt = now;
+}
+
+/**
+ * Adopt a browser's saved copy of a player's own data (study progress, own
+ * cards, notes). Newer wins, so a stale tab cannot roll progress back.
+ */
+export function applyPersonal(room, seat, payload, now = Date.now()) {
+  const personal = room.personal?.[seat];
+  if (!room.seats[seat]?.online || !personal) return { ok: false, error: 'invalid' };
+  if (!payload || typeof payload !== 'object') return { ok: false, error: 'invalid' };
+
+  const savedAt = Math.round(Number(payload.savedAt)) || 0;
+  if (personal.savedAt > 0 && savedAt <= personal.savedAt) {
+    return { ok: true, adopted: false };
+  }
+
+  personal.study = sanitizeStudyState(payload.study);
+  personal.notes = sanitizeNotes(payload.notes);
+  personal.savedAt = savedAt || now;
+  bumpPersonal(personal, now);
+  room.lastActive = now;
+  return { ok: true, adopted: true, notes: personal.notes.length };
+}
+
+/** Add / edit / delete a note, or flip it into the flashcard queue. */
+export function changeNote(room, seat, action, payload, now = Date.now()) {
+  const personal = room.personal?.[seat];
+  if (!room.seats[seat]?.online || !personal) return { ok: false, error: 'invalid' };
+
+  let result;
+  if (action === 'add' || action === 'update') {
+    result = upsertNote(personal.notes, payload, now);
+  } else if (action === 'remove') {
+    result = removeNote(personal.notes, String(payload?.id ?? ''));
+  } else if (action === 'study') {
+    result = toggleNoteStudy(personal.notes, String(payload?.id ?? ''), payload?.study, now);
+  } else {
+    return { ok: false, error: 'invalid_action' };
+  }
+
+  if (!result.ok) return result;
+  personal.notes = result.notes;
+  bumpPersonal(personal, now);
+  room.lastActive = now;
+  return result;
+}
+
 export function bondInfo(points) {
   let index = 0;
   for (let i = 1; i < BOND_LEVELS.length; i += 1) {
@@ -397,14 +524,50 @@ export function bondInfo(points) {
   };
 }
 
-export function publicRoom(room, now = Date.now()) {
-  const publicSeat = (seat) => {
-    const player = room.seats[seat];
+/**
+ * @param {object} room
+ * @param {number} [now]
+ * @param {'host'|'guest'} [seat] when given, include that player's private view
+ *   (their flashcard queue and progress) instead of a shared snapshot.
+ * @param {{includePersonal?: boolean}} [options] also ship the raw personal
+ *   state, so the browser can keep the master copy in localStorage.
+ */
+export function publicRoom(room, now = Date.now(), seat = null, options = {}) {
+  const publicSeat = (seatName) => {
+    const player = room.seats[seatName];
     return player ? { name: player.name, online: Boolean(player.online) } : null;
   };
   const cooldowns = {};
   for (const action of Object.keys(ACTIONS)) {
     cooldowns[action] = room.cooldowns[action] ?? 0;
+  }
+
+  const partnerSeat = seat ? opponentOf(seat) : null;
+  const personal = seat ? room.personal?.[seat] : null;
+  const partnerPersonal = partnerSeat ? room.personal?.[partnerSeat] : null;
+  const extras = personal ? noteCards(personal.notes) : [];
+  const partnerExtras = partnerPersonal ? noteCards(partnerPersonal.notes) : [];
+
+  const study = personal
+    ? {
+        ...studyView(personal.study, now, extras),
+        partner:
+          room.seats[partnerSeat] && partnerPersonal
+            ? {
+                name: room.seats[partnerSeat].name,
+                ...studySummary(partnerPersonal.study, now, partnerExtras),
+              }
+            : null,
+      }
+    : null;
+
+  if (study && options.includePersonal && personal) {
+    study.personal = {
+      rev: personal.rev,
+      savedAt: personal.savedAt,
+      study: personal.study,
+      notes: personal.notes,
+    };
   }
 
   return {
@@ -426,6 +589,7 @@ export function publicRoom(room, now = Date.now()) {
       line: [...room.game.line],
       scores: { ...room.game.scores },
     },
+    study,
     together: Boolean(room.seats.host?.online && room.seats.guest?.online),
     serverTime: now,
   };

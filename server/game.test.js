@@ -8,11 +8,16 @@ import {
   joinRoom,
   markOffline,
   normalizeCode,
+  applyPersonal,
+  changeNote,
   performAction,
+  performStudyGrade,
+  performStudyLevelChange,
   placeMark,
   publicRoom,
   requestRematch,
   tickRoom,
+  vacateSeat,
 } from './game.js';
 
 const T0 = 1_700_000_000_000;
@@ -170,4 +175,156 @@ test('maps bond points onto numbered levels', () => {
   assert.equal(bondInfo(320).level, 5);
   assert.equal(bondInfo(320).progress, 1);
   assert.equal('name' in bondInfo(30), false);
+});
+
+test('gives each seat its own vocabulary deck', () => {
+  const { room, host } = roomWithPair();
+
+  const mine = performStudyGrade(room, 'host', '的', 'good', T0 + 1000);
+  assert.equal(mine.ok, true);
+  assert.equal(room.personal.host.study.reviewedToday, 1);
+  assert.equal(room.personal.guest.study.reviewedToday, 0);
+
+  const view = publicRoom(room, T0 + 1000, 'host');
+  assert.equal(view.study.level, 1);
+  assert.equal(view.study.today.reviewed, 1);
+  assert.equal(view.study.partner.name, '阿远');
+  assert.equal(view.study.partner.reviewed, 0);
+  assert.equal('queue' in view.study.partner, false, 'partner view stays a summary');
+
+  // The other seat sees their own (still untouched) deck.
+  const theirs = publicRoom(room, T0 + 1000, 'guest');
+  assert.equal(theirs.study.today.reviewed, 0);
+  assert.equal(theirs.study.partner.reviewed, 1);
+
+  // Without a seat there is no private data to leak.
+  assert.equal(publicRoom(room, T0 + 1000).study, null);
+  assert.equal(JSON.stringify(view).includes(host.token), false);
+});
+
+test('finishing the daily goal warms the bear and tells the room', () => {
+  const { room } = roomWithPair();
+  const words = publicRoom(room, T0, 'host').study.queue.map((card) => card.w);
+
+  const beforeBond = room.stats.bond;
+  for (const word of words) performStudyGrade(room, 'host', word, 'good', T0 + 1000);
+
+  assert.ok(room.stats.bond > beforeBond, 'bond should grow');
+  const event = room.chat.find((message) => message.event === 'studyGoal');
+  assert.ok(event, 'a system message marks the milestone');
+  assert.equal(event.data.name, '小满');
+  assert.equal('studyTogether' in event, false);
+});
+
+test('rejects cards from another level and bad grades', () => {
+  const { room } = roomWithPair();
+  assert.equal(performStudyLevelChange(room, 'host', 2, T0).ok, true);
+  assert.equal(room.personal.host.study.level, 2);
+
+  // 的 is HSK 1, so it is not part of the HSK 2 deck any more.
+  assert.equal(performStudyGrade(room, 'host', '的', 'good', T0).error, 'unknown_card');
+  assert.equal(performStudyGrade(room, 'host', '把', 'perfect', T0).error, 'invalid_grade');
+  assert.equal(performStudyLevelChange(room, 'host', 99, T0).ok, false);
+});
+
+test('a seat that is vacated starts over with a clean deck', () => {
+  const { room } = roomWithPair();
+  performStudyGrade(room, 'guest', '的', 'good', T0 + 1000);
+  assert.equal(room.personal.guest.study.reviewedToday, 1);
+
+  vacateSeat(room, 'guest', T0 + 2000);
+  assert.equal(room.personal.guest.study.reviewedToday, 0);
+  assert.deepEqual(room.personal.guest.study.cards, {});
+  assert.equal(room.personal.guest.study.level, 1);
+});
+
+test('own cards jump the queue and can be graded', () => {
+  const { room } = roomWithPair();
+  const added = changeNote(
+    room,
+    'host',
+    'add',
+    { w: '抱抱', p: 'bào bào', m: 'to hug', note: 'TA 教我的', study: true },
+    T0 + 100,
+  );
+  assert.equal(added.ok, true);
+  assert.equal(added.notes.length, 1);
+
+  const view = publicRoom(room, T0 + 100, 'host').study;
+  assert.equal(view.myCards, 1);
+  assert.equal(view.queue[0].w, '抱抱');
+  assert.equal(view.queue[0].custom, true);
+
+  const graded = performStudyGrade(room, 'host', view.queue[0].key, 'good', T0 + 200);
+  assert.equal(graded.ok, true);
+  assert.equal(room.personal.host.study.reviewedToday, 1);
+
+  // The partner never sees the other player's own cards.
+  const partner = publicRoom(room, T0 + 200, 'guest').study;
+  assert.equal(partner.myCards, 0);
+  assert.equal(partner.partner.myCards, 1);
+});
+
+test('notes can be edited, flipped into the deck, and removed', () => {
+  const { room } = roomWithPair();
+  const added = changeNote(room, 'host', 'add', { w: '月亮', p: 'yuè liang', m: 'moon' }, T0);
+  const id = added.note.id;
+
+  const edited = changeNote(room, 'host', 'update', { id, w: '月亮', p: 'yuè liang', m: 'the moon', note: '今晚很圆' }, T0 + 1);
+  assert.equal(edited.note.m, 'the moon');
+  assert.equal(edited.created, false);
+  assert.equal(edited.notes.length, 1);
+
+  const on = changeNote(room, 'host', 'study', { id, study: true }, T0 + 2);
+  assert.equal(on.note.study, true);
+  assert.ok(publicRoom(room, T0 + 2, 'host').study.queue.some((card) => card.w === '月亮'));
+
+  const removed = changeNote(room, 'host', 'remove', { id }, T0 + 3);
+  assert.equal(removed.ok, true);
+  assert.equal(removed.notes.length, 0);
+  assert.ok(!publicRoom(room, T0 + 3, 'host').study.queue.some((card) => card.w === '月亮'));
+});
+
+test('a browser copy of personal data is adopted unless it is older', () => {
+  const { room } = roomWithPair();
+  const saved = {
+    savedAt: T0 + 5000,
+    study: { level: 2, cards: {}, streak: 4, lastDay: '2023-11-14', reviewedToday: 3, newToday: 1 },
+    notes: [{ id: 'nabc1234', w: '咖啡', p: 'kā fēi', m: 'coffee', study: true }],
+  };
+
+  const first = applyPersonal(room, 'host', saved, T0 + 5000);
+  assert.equal(first.adopted, true);
+  assert.equal(room.personal.host.study.level, 2);
+  assert.equal(room.personal.host.notes.length, 1);
+
+  const stale = applyPersonal(room, 'host', { savedAt: T0 + 1000, study: { level: 5 }, notes: [] }, T0 + 6000);
+  assert.equal(stale.adopted, false);
+  assert.equal(room.personal.host.study.level, 2, 'an older tab cannot roll progress back');
+
+  const raw = publicRoom(room, T0 + 6000, 'host', { includePersonal: true }).study.personal;
+  assert.equal(raw.study.level, 2);
+  assert.equal(raw.notes[0].w, '咖啡');
+});
+
+test('junk in a personal payload is dropped instead of trusted', () => {
+  const { room } = roomWithPair();
+  applyPersonal(
+    room,
+    'guest',
+    {
+      savedAt: T0 + 10,
+      study: { level: 99, streak: -5, cards: { '不存在的词': { interval: 3 }, '的': { interval: 99999, ease: 99 } } },
+      notes: [{ nope: true }, { w: '好', m: 'good' }],
+    },
+    T0 + 10,
+  );
+
+  const personal = room.personal.guest;
+  assert.equal(personal.study.level, 1);
+  assert.equal(personal.study.streak, 0);
+  assert.deepEqual(Object.keys(personal.study.cards), ['的']);
+  assert.equal(personal.study.cards['的'].interval, 365);
+  assert.equal(personal.notes.length, 1);
+  assert.equal(personal.notes[0].w, '好');
 });

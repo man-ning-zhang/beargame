@@ -7,12 +7,16 @@ import {
   ACTIONS,
   SEAT_GRACE_MS,
   addChat,
+  applyPersonal,
+  changeNote,
   createRoom,
   joinRoom,
   makeRoomCode,
   markOffline,
   normalizeCode,
   performAction,
+  performStudyGrade,
+  performStudyLevelChange,
   placeMark,
   publicRoom,
   requestRematch,
@@ -172,12 +176,21 @@ function send(ws, message) {
 }
 
 function broadcast(room) {
-  const payload = JSON.stringify({ type: 'state', room: publicRoom(room) });
+  // The room snapshot is shared, but flashcard progress is per player, so each
+  // seat gets its own view of the same state. The raw personal copy only rides
+  // along when it changed, so the browser can mirror it into localStorage.
+  const now = Date.now();
   for (const seat of ['host', 'guest']) {
     const player = room.seats[seat];
-    if (player?.ws && player.ws.readyState === 1) {
-      player.ws.send(payload);
-    }
+    if (!player?.ws || player.ws.readyState !== 1) continue;
+    const personal = room.personal?.[seat];
+    const includePersonal = Boolean(personal) && player.ws.personalRev !== personal.rev;
+    const payload = JSON.stringify({
+      type: 'state',
+      room: publicRoom(room, now, seat, { includePersonal }),
+    });
+    player.ws.send(payload);
+    if (includePersonal) player.ws.personalRev = personal.rev;
   }
 }
 
@@ -211,7 +224,7 @@ function allowJoinAttempt(ip) {
   return hit.count <= 40;
 }
 
-function bindSocket(ws, room, seat, token) {
+function bindSocket(ws, room, seat, token, extra = {}) {
   const player = room.seats[seat];
   if (!player) return false;
 
@@ -233,7 +246,7 @@ function bindSocket(ws, room, seat, token) {
   ws.seat = seat;
   ws.token = token;
 
-  send(ws, { type: 'joined', code: room.code, seat, token });
+  send(ws, { type: 'joined', code: room.code, seat, token, ...extra });
   broadcast(room);
   return true;
 }
@@ -293,10 +306,19 @@ function handleJoin(ws, msg) {
     sendError(ws, 'invalid_code', '房间号是 4 位字母或数字。');
     return;
   }
-  const room = rooms.get(code);
+  // The code is the relationship's address: if the server forgot the room
+  // (redeploy, free-tier sleep), re-light it under the same code instead of
+  // sending the player back to the lobby.
+  let room = rooms.get(code);
+  let reborn = false;
   if (!room) {
-    sendError(ws, 'room_not_found', '没有找到这间小屋，检查一下房间号吧。');
-    return;
+    if (rooms.size >= MAX_ROOMS) {
+      sendError(ws, 'busy', '小屋太多了，等一会儿再试试。');
+      return;
+    }
+    room = createRoom(code);
+    rooms.set(code, room);
+    reborn = true;
   }
   if (ws.roomCode && ws.roomCode !== code) {
     leaveCurrentRoom(ws, 'leave');
@@ -307,9 +329,10 @@ function handleJoin(ws, msg) {
     sendError(ws, 'room_full', '这间小屋已经有两个人啦。');
     return;
   }
-  bindSocket(ws, room, result.seat, result.token);
+  if (reborn) systemChat(room, 'reborn', { code: room.code }, Date.now());
+  bindSocket(ws, room, result.seat, result.token, { reborn });
   console.log(
-    `[room] ${code} ${result.reconnected ? 'rejoined' : 'joined'} by ${room.seats[result.seat].name} (${result.seat})`,
+    `[room] ${code} ${result.reconnected ? 'rejoined' : 'joined'} by ${room.seats[result.seat].name} (${result.seat})${reborn ? ' · re-lit' : ''}`,
   );
 }
 
@@ -403,6 +426,36 @@ function handleMessage(ws, raw) {
       broadcast(room);
     } else if (result.error === 'in_progress') {
       send(ws, { type: 'toast', code: 'game_in_progress' });
+    }
+    return;
+  }
+
+  if (msg.type === 'study') {
+    const result =
+      msg.action === 'level'
+        ? performStudyLevelChange(room, seat, Number(msg.level), now)
+        : performStudyGrade(room, seat, msg.key ?? msg.word, msg.grade, now);
+    if (result.ok) {
+      broadcast(room);
+    } else {
+      send(ws, { type: 'toast', code: 'study_invalid' });
+    }
+    return;
+  }
+
+  if (msg.type === 'personal') {
+    const result = applyPersonal(room, seat, msg.data, now);
+    if (result.ok) broadcast(room);
+    return;
+  }
+
+  if (msg.type === 'note') {
+    const result = changeNote(room, seat, msg.action, msg.payload, now);
+    if (result.ok) {
+      broadcast(room);
+      send(ws, { type: 'noteOk', action: msg.action, id: result.note?.id ?? msg.payload?.id });
+    } else {
+      send(ws, { type: 'toast', code: msg.error === 'full' ? 'note_full' : 'note_invalid' });
     }
   }
 }

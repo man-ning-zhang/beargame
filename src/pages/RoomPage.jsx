@@ -5,6 +5,7 @@ import ChatPanel from '../components/ChatPanel';
 import GamePanel from '../components/GamePanel';
 import RoomHeader from '../components/RoomHeader';
 import Scene from '../components/Scene';
+import StudyPanel from '../components/StudyPanel';
 import { useRoom } from '../context/RoomContext';
 import { useI18n } from '../context/LanguageContext';
 import { playSound } from '../utils/sound';
@@ -92,8 +93,8 @@ const SideCard = styled.div`
 
 const Tabs = styled.div`
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3px;
   margin-bottom: 14px;
   padding: 4px;
   border-radius: 14px;
@@ -107,11 +108,13 @@ const Tab = styled.button`
   justify-content: center;
   gap: 7px;
   height: 36px;
+  padding: 0 2px;
   border: 0;
   border-radius: 11px;
   background: ${(props) => (props.$active ? 'rgba(255, 255, 255, 0.94)' : 'transparent')};
   color: ${(props) => (props.$active ? palette.ink : palette.muted)};
-  font-size: 11.5px;
+  font-size: 11px;
+  white-space: nowrap;
   font-weight: ${(props) => (props.$active ? 700 : 500)};
   cursor: pointer;
   box-shadow: ${(props) => (props.$active ? '0 5px 12px -8px rgba(61, 47, 41, 0.35)' : 'none')};
@@ -191,6 +194,11 @@ export default function RoomPage() {
     sendChat,
     makeMove,
     rematch,
+    gradeCard,
+    setStudyLevel,
+    saveNote,
+    removeNote,
+    toggleNoteStudy,
   } = useRoom();
   const { t } = useI18n();
 
@@ -267,7 +275,9 @@ export default function RoomPage() {
 
   const chatMessages = (room.chat || []).filter((message) => message.kind === 'chat');
   const unread =
-    tab === 'game' ? chatMessages.filter((message) => message.seat !== me && message.id > seenChatId).length : 0;
+    tab === 'chat'
+      ? 0
+      : chatMessages.filter((message) => message.seat !== me && message.id > seenChatId).length;
   const reconnecting = status === 'reconnecting' || !connected;
 
   return (
@@ -326,23 +336,42 @@ export default function RoomPage() {
                 </span>
                 {t('tabs.game')}
               </Tab>
+              <Tab
+                type="button"
+                role="tab"
+                aria-selected={tab === 'study'}
+                $active={tab === 'study'}
+                onClick={() => setTab('study')}
+              >
+                <span className="icon" aria-hidden="true">
+                  📖
+                </span>
+                {t('tabs.study')}
+              </Tab>
             </Tabs>
 
             <TabBody>
-              {tab === 'chat' ? (
-                <ChatPanel
-                  room={room}
-                  me={me}
-                  connected={connected}
-                  onSend={sendChat}
-                />
-              ) : (
+              {tab === 'chat' && (
+                <ChatPanel room={room} me={me} connected={connected} onSend={sendChat} />
+              )}
+              {tab === 'game' && (
                 <GamePanel
                   room={room}
                   me={me}
                   connected={connected}
                   onMove={makeMove}
                   onRematch={rematch}
+                />
+              )}
+              {tab === 'study' && (
+                <StudyPanel
+                  room={room}
+                  connected={connected}
+                  onGrade={gradeCard}
+                  onLevel={setStudyLevel}
+                  onSaveNote={saveNote}
+                  onRemoveNote={removeNote}
+                  onToggleNoteStudy={toggleNoteStudy}
                 />
               )}
             </TabBody>
