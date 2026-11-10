@@ -510,6 +510,14 @@ export function RoomProvider({ children }) {
     [sendRaw],
   );
 
+  const setStudyLang = useCallback(
+    (lang) => {
+      if (!inRoomRef.current) return false;
+      return sendRaw({ type: 'study', action: 'lang', lang: String(lang) });
+    },
+    [sendRaw],
+  );
+
   const setStudyLimit = useCallback(
     (limit) => {
       if (!inRoomRef.current) return false;
@@ -578,6 +586,7 @@ export function RoomProvider({ children }) {
     rematch,
     gradeCard,
     setStudyLevel,
+    setStudyLang,
     setStudyLimit,
     cloze,
     clozeResult,

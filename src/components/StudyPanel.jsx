@@ -3,7 +3,7 @@ import styled, { css, keyframes } from 'styled-components';
 import { useI18n } from '../context/LanguageContext';
 import ClozePanel from './ClozePanel';
 import NotebookPanel from './NotebookPanel';
-import { speakChinese, speechSupported } from '../utils/speech';
+import { speak, speechSupported } from '../utils/speech';
 import { breakpoints, palette } from '../theme';
 
 const rise = keyframes`
@@ -51,7 +51,6 @@ const Streak = styled.span`
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  margin-top: 2px;
   padding: 5px 9px;
   border-radius: 999px;
   background: ${(props) => (props.$on ? 'rgba(241, 185, 79, 0.18)' : 'rgba(61, 47, 41, 0.05)')};
@@ -87,6 +86,44 @@ const SwitchButton = styled.button`
     margin-left: 4px;
     opacity: 0.55;
     font-variant-numeric: tabular-nums;
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(232, 121, 95, 0.35);
+    outline-offset: 1px;
+  }
+`;
+
+const TopRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 11px;
+`;
+
+const LangSwitch = styled.div`
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 10px;
+  background: rgba(61, 47, 41, 0.05);
+`;
+
+const LangButton = styled.button`
+  height: 24px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 7px;
+  background: ${(props) => (props.$active ? 'rgba(255, 255, 255, 0.96)' : 'transparent')};
+  color: ${(props) => (props.$active ? palette.ink : palette.muted)};
+  font-size: 10px;
+  font-weight: ${(props) => (props.$active ? 700 : 500)};
+  cursor: pointer;
+  transition: background 0.16s ease, color 0.16s ease;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   &:focus-visible {
@@ -531,6 +568,7 @@ export default function StudyPanel({
   connected,
   onGrade,
   onLevel,
+  onLang,
   onLimit,
   onSaveNote,
   onRemoveNote,
@@ -586,6 +624,8 @@ export default function StudyPanel({
   if (!study) return null;
 
   const { today } = study;
+  const lang = study.lang ?? 'zh';
+  const deckName = t(`study.deck.${lang}`);
   const percent = Math.min(100, Math.round((today.reviewed / Math.max(1, today.goal)) * 100));
   const canListen = speechSupported();
   const onCardKeyDown = (event) => {
@@ -607,10 +647,33 @@ export default function StudyPanel({
           <Title>{t('study.title')}</Title>
           <Sub>{t('study.sub')}</Sub>
         </div>
+      </Head>
+
+      <TopRow>
+        <LangSwitch role="group" aria-label={t('study.langAria')}>
+          <LangButton
+            type="button"
+            $active={lang === 'zh'}
+            aria-pressed={lang === 'zh'}
+            disabled={!connected}
+            onClick={() => onLang('zh')}
+          >
+            {t('study.lang.zh')}
+          </LangButton>
+          <LangButton
+            type="button"
+            $active={lang === 'fr'}
+            aria-pressed={lang === 'fr'}
+            disabled={!connected}
+            onClick={() => onLang('fr')}
+          >
+            {t('study.lang.fr')}
+          </LangButton>
+        </LangSwitch>
         <Streak $on={study.streak > 0}>
           {study.streak > 0 ? `🔥 ${t('study.streak', { days: study.streak })}` : t('study.streak.none')}
         </Streak>
-      </Head>
+      </TopRow>
 
       <ViewSwitch role="tablist" aria-label={t('study.viewAria')}>
         <SwitchButton
@@ -655,6 +718,7 @@ export default function StudyPanel({
         <div style={{ marginTop: 11 }}>
           <NotebookPanel
             notes={notes}
+            lang={lang}
             connected={connected}
             myCards={study.myCards}
             onSave={onSaveNote}
@@ -666,7 +730,7 @@ export default function StudyPanel({
         <>
       <Levels role="group" aria-label={t('study.levelGroup')}>
         <span className="label" aria-hidden="true">
-          HSK
+          {deckName}
         </span>
         {study.levels.map((entry) => (
           <LevelChip
@@ -675,11 +739,13 @@ export default function StudyPanel({
             $active={entry.level === study.level}
             aria-pressed={entry.level === study.level}
             aria-label={t('study.levelAria', {
+              deck: deckName,
               level: entry.level,
               learned: entry.learned,
               total: entry.total,
             })}
             title={t('study.levelAria', {
+              deck: deckName,
               level: entry.level,
               learned: entry.learned,
               total: entry.total,
@@ -732,17 +798,17 @@ export default function StudyPanel({
                 onKeyDown={onCardKeyDown}
               >
                 <LevelTag>
-                  {card.custom ? t('study.tagCustom') : t('study.tag', { level: card.l })}
+                  {card.custom ? t('study.tagCustom') : t('study.tag', { deck: deckName, level: card.l })}
                 </LevelTag>
-                <Hanzi lang="zh-Hans">{card.w}</Hanzi>
+                <Hanzi lang={lang === 'fr' ? 'fr' : 'zh-Hans'}>{card.w}</Hanzi>
                 <TapHint>{t('study.flip')}</TapHint>
               </Face>
               <Back aria-hidden={!revealed} onClick={() => setRevealed(false)}>
                 <LevelTag>
-                  {card.custom ? t('study.tagCustom') : t('study.tag', { level: card.l })}
+                  {card.custom ? t('study.tagCustom') : t('study.tag', { deck: deckName, level: card.l })}
                 </LevelTag>
-                <BackHanzi lang="zh-Hans">{card.w}</BackHanzi>
-                <Pinyin>{card.p}</Pinyin>
+                <BackHanzi lang={lang === 'fr' ? 'fr' : 'zh-Hans'}>{card.w}</BackHanzi>
+                {card.p && <Pinyin>{card.p}</Pinyin>}
                 <Meaning>{card.m}</Meaning>
                 {(card.pos || card.c) && (
                   <Meta>
@@ -757,7 +823,7 @@ export default function StudyPanel({
                 type="button"
                 onClick={(event) => {
                   event.stopPropagation();
-                  speakChinese(card.w);
+                  speak(card.w, lang === 'fr' ? 'fr-FR' : 'zh-CN');
                 }}
                 aria-label={t('study.listen', { word: card.w })}
                 title={t('study.listen', { word: card.w })}
@@ -833,7 +899,7 @@ export default function StudyPanel({
               : t('study.partner.idle', { name: study.partner.name })
             : t('study.partner.none')}
         </span>
-        <span className="note">{t('study.note')}</span>
+        <span className="note">{t(`study.note.${lang}`)}</span>
       </Foot>
       )}
     </Wrap>

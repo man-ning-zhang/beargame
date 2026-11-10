@@ -7,6 +7,8 @@ import {
   buildQueue,
   createStudyState,
   currentStreak,
+  levelsFor,
+  setStudyLang,
   dayKey,
   deckSize,
   gradeCard,
@@ -37,7 +39,7 @@ test('starts on HSK 1 with an empty deck and no progress', () => {
   assert.equal(study.level, 1);
   assert.deepEqual(study.cards, {});
   assert.equal(study.reviewedToday, 0);
-  assert.equal(deckSize(1), 150);
+  assert.equal(deckSize('zh', 1), 150);
   assert.deepEqual(STUDY_LEVELS, [1, 2, 3, 4, 5, 6]);
 });
 
@@ -241,4 +243,48 @@ test('cloze questions offer four options including the answer', () => {
   assert.equal(wrong.correct, false);
   assert.equal(wrong.answer, second.answer);
   assert.ok(other.cards[second.key].due - T0 <= 15 * MINUTE, 'a missed word comes back soon');
+});
+
+test('the French deck has A1-B1 levels and its own cards', () => {
+  const fr = createStudyState('fr');
+  assert.equal(fr.lang, 'fr');
+  assert.equal(fr.level, 'A1');
+  assert.deepEqual(levelsFor('fr'), ['A1', 'A2', 'B1']);
+  assert.equal(deckSize('fr', 'A1'), 1070);
+
+  const queue = buildQueue(fr, T0);
+  assert.equal(queue.length, 10);
+  assert.ok(queue.every((card) => card.key.startsWith('fr:')));
+  assert.ok(queue[0].m, 'French cards carry an English definition');
+  assert.equal('p' in queue[0], false, 'no pinyin on French cards');
+
+  const graded = gradeCard(fr, queue[0].key, 'good', T0);
+  assert.equal(graded.ok, true);
+  assert.equal(fr.reviewedToday, 1);
+
+  // A Chinese card is not part of the French deck.
+  assert.equal(gradeCard(fr, '的', 'good', T0).ok, false);
+});
+
+test('switching language resets the level but keeps both decks apart', () => {
+  const study = createStudyState('zh');
+  const [zhCard] = buildQueue(study, T0);
+  gradeCard(study, zhCard.key, 'good', T0);
+
+  assert.equal(setStudyLang(study, 'fr').ok, true);
+  assert.equal(study.lang, 'fr');
+  assert.equal(study.level, 'A1');
+  assert.equal(levelProgress(study).length, 3);
+  assert.equal(study.cards[zhCard.key].reps, 1, 'Chinese progress is kept');
+
+  assert.equal(setStudyLevel(study, 'B1').ok, true);
+  assert.equal(study.level, 'B1');
+  assert.equal(setStudyLevel(study, '1').ok, false);
+
+  assert.equal(setStudyLang(study, 'de').ok, false);
+
+  const restored = sanitizeStudyState({ lang: 'fr', level: 'A2', cards: { 'fr:maison': { interval: 2 } } });
+  assert.equal(restored.lang, 'fr');
+  assert.equal(restored.level, 'A2');
+  assert.ok(restored.cards['fr:maison']);
 });

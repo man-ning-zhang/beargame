@@ -196,6 +196,7 @@ export default function RoomPage() {
     rematch,
     gradeCard,
     setStudyLevel,
+    setStudyLang,
     setStudyLimit,
     cloze,
     clozeResult,
@@ -374,6 +375,7 @@ export default function RoomPage() {
                   connected={connected}
                   onGrade={gradeCard}
                   onLevel={setStudyLevel}
+                  onLang={setStudyLang}
                   onLimit={setStudyLimit}
                   cloze={cloze}
                   clozeResult={clozeResult}

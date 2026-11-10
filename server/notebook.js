@@ -41,6 +41,7 @@ export function sanitizeNote(raw, now = Date.now()) {
   const id = /^n[a-z0-9]{4,20}$/.test(String(raw.id ?? '')) ? String(raw.id) : idFor(now);
   return {
     id,
+    lang: raw.lang === 'fr' ? 'fr' : 'zh',
     w: hanzi,
     p: text(raw.p, MAX_PINYIN),
     m: text(raw.m, MAX_MEANING),
@@ -104,6 +105,7 @@ export function noteCards(notes) {
     .filter((note) => note.study)
     .map((note) => ({
       key: `n:${note.id}`,
+      lang: note.lang ?? 'zh',
       w: note.w,
       p: note.p,
       m: note.m || '—',

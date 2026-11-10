@@ -313,11 +313,11 @@ const FootNote = styled.p`
   text-align: center;
 `;
 
-function blankDraft() {
-  return { w: '', p: '', m: '', note: '', tag: '', study: true };
+function blankDraft(lang) {
+  return { w: '', p: '', m: '', note: '', tag: '', study: true, lang };
 }
 
-export default function NotebookPanel({ notes = [], connected, myCards, onSave, onRemove, onToggleStudy }) {
+export default function NotebookPanel({ notes = [], lang = 'zh', connected, myCards, onSave, onRemove, onToggleStudy }) {
   const { t } = useI18n();
   const [query, setQuery] = useState('');
   const [draft, setDraft] = useState(null);
@@ -325,17 +325,18 @@ export default function NotebookPanel({ notes = [], connected, myCards, onSave, 
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    const sorted = [...notes].sort((a, b) => (b.updatedAt || b.at || 0) - (a.updatedAt || a.at || 0));
+    const mine = notes.filter((note) => (note.lang ?? 'zh') === lang);
+    const sorted = [...mine].sort((a, b) => (b.updatedAt || b.at || 0) - (a.updatedAt || a.at || 0));
     if (!needle) return sorted;
     return sorted.filter((note) =>
       [note.w, note.p, note.m, note.note, note.tag]
         .filter(Boolean)
         .some((field) => String(field).toLowerCase().includes(needle)),
     );
-  }, [notes, query]);
+  }, [notes, query, lang]);
 
   const startNew = () => {
-    setDraft(blankDraft());
+    setDraft(blankDraft(lang));
     setConfirmId('');
   };
 
@@ -354,6 +355,7 @@ export default function NotebookPanel({ notes = [], connected, myCards, onSave, 
       note: draft.note.trim(),
       tag: draft.tag.trim(),
       study: Boolean(draft.study),
+      lang: draft.lang ?? lang,
     });
     setDraft(null);
   };

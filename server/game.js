@@ -11,6 +11,7 @@ import {
   nextCloze,
   rollStudyDay,
   sanitizeStudyState,
+  setStudyLang,
   setStudyLevel,
   setStudyLimit,
   studySummary,
@@ -455,6 +456,17 @@ function checkStudyMilestones(room, seat, before, now) {
     room.stats.bond = clamp(room.stats.bond + 2, 0, 999);
     addSystemChat(room, 'studyTogether', {}, now);
   }
+}
+
+export function performStudyLangChange(room, seat, lang, now = Date.now()) {
+  const personal = room.personal?.[seat];
+  if (!room.seats[seat]?.online || !personal) return { ok: false, error: 'invalid' };
+  const result = setStudyLang(personal.study, lang);
+  if (result.ok) {
+    bumpPersonal(personal, now);
+    room.lastActive = now;
+  }
+  return result;
 }
 
 export function performStudyLimitChange(room, seat, value, now = Date.now()) {

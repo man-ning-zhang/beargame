@@ -12,7 +12,8 @@
 
 import fs from 'node:fs';
 
-const DECK = JSON.parse(fs.readFileSync(new URL('./data/hsk.json', import.meta.url), 'utf8'));
+const HSK = JSON.parse(fs.readFileSync(new URL('./data/hsk.json', import.meta.url), 'utf8'));
+const FRENCH = JSON.parse(fs.readFileSync(new URL('./data/french.json', import.meta.url), 'utf8'));
 
 export const GRADES = ['again', 'hard', 'good'];
 export const DAILY_NEW = 10;
@@ -37,17 +38,37 @@ const MAX_TRACKED_CARDS = 8000;
 // which would reset "today" at 8am in Beijing.
 const DAY_OFFSET_MS = Number(process.env.STUDY_TZ_OFFSET_MINUTES ?? 480) * MINUTE;
 
-const DECK_BY_LEVEL = new Map();
-const CARD_BY_KEY = new Map();
+export const LANGUAGES = ['zh', 'fr'];
+export const DEFAULT_LANG = 'zh';
 
-for (const card of DECK) {
-  card.key = card.w;
-  if (!DECK_BY_LEVEL.has(card.l)) DECK_BY_LEVEL.set(card.l, []);
-  DECK_BY_LEVEL.get(card.l).push(card);
-  CARD_BY_KEY.set(card.key, card);
+function compareLevels(a, b) {
+  if (typeof a === 'number' && typeof b === 'number') return a - b;
+  return String(a).localeCompare(String(b));
 }
 
-export const STUDY_LEVELS = Array.from(DECK_BY_LEVEL.keys()).sort((a, b) => a - b);
+/** HSK keys stay bare (older saved progress keeps working); French is prefixed. */
+function buildDeck(cards, lang) {
+  const byLevel = new Map();
+  const byKey = new Map();
+  for (const card of cards) {
+    card.key = lang === 'zh' ? card.w : `${lang}:${card.w}`;
+    card.lang = lang;
+    if (!byLevel.has(card.l)) byLevel.set(card.l, []);
+    byLevel.get(card.l).push(card);
+    byKey.set(card.key, card);
+  }
+  return { lang, byLevel, byKey, levels: Array.from(byLevel.keys()).sort(compareLevels) };
+}
+
+export const DECKS = { zh: buildDeck(HSK, 'zh'), fr: buildDeck(FRENCH, 'fr') };
+
+const CARD_BY_KEY = new Map();
+for (const lang of LANGUAGES) {
+  for (const [key, card] of DECKS[lang].byKey) CARD_BY_KEY.set(key, card);
+}
+
+/** HSK levels, kept as a named export for older callers. */
+export const STUDY_LEVELS = DECKS.zh.levels;
 
 function clampNumber(value, min, max, fallback = 0) {
   const number = Number(value);
@@ -59,13 +80,20 @@ export function dayKey(now = Date.now()) {
   return new Date(now + DAY_OFFSET_MS).toISOString().slice(0, 10);
 }
 
-export function deckSize(level) {
-  return DECK_BY_LEVEL.get(level)?.length ?? 0;
+export function deckSize(lang, level) {
+  return DECKS[lang]?.byLevel.get(level)?.length ?? 0;
 }
 
-export function createStudyState(level = STUDY_LEVELS[0] ?? 1) {
+export function levelsFor(lang) {
+  return DECKS[lang]?.levels ?? DECKS[DEFAULT_LANG].levels;
+}
+
+export function createStudyState(lang = DEFAULT_LANG) {
+  // Tolerate the old signature (a level number) so saved callers keep working.
+  const safe = LANGUAGES.includes(lang) ? lang : DEFAULT_LANG;
   return {
-    level,
+    lang: safe,
+    level: levelsFor(safe)[0],
     day: '',
     lastDay: '',
     streak: 0,
@@ -84,8 +112,11 @@ export function sanitizeStudyState(raw) {
   const study = createStudyState();
   if (!raw || typeof raw !== 'object') return study;
 
-  const level = Number(raw.level);
-  if (DECK_BY_LEVEL.has(level)) study.level = level;
+  const lang = LANGUAGES.includes(raw.lang) ? raw.lang : DEFAULT_LANG;
+  study.lang = lang;
+  const levels = levelsFor(lang);
+  const level = lang === 'zh' ? Number(raw.level) : String(raw.level ?? '');
+  if (levels.includes(level)) study.level = level;
 
   study.day = /^\d{4}-\d{2}-\d{2}$/.test(String(raw.day ?? '')) ? String(raw.day) : '';
   study.lastDay = /^\d{4}-\d{2}-\d{2}$/.test(String(raw.lastDay ?? '')) ? String(raw.lastDay) : '';
@@ -157,12 +188,12 @@ function publicCard(card, rec) {
   const shaped = {
     key: card.key,
     w: card.w,
-    p: card.p,
     m: card.m,
     l: card.l,
     // What the grade buttons will do, so the UI can show "记住了 · 3 天后".
     iv: [nextInterval(base, 'hard'), nextInterval(base, 'good')],
   };
+  if (card.p) shaped.p = card.p;
   if (card.c) shaped.c = card.c;
   if (card.pos) shaped.pos = card.pos;
   if (card.custom) shaped.custom = true;
@@ -170,15 +201,16 @@ function publicCard(card, rec) {
   return shaped;
 }
 
-/** HSK deck for the current level plus the player's own cards. */
+/** Deck for the current language and level, plus the player's own cards in it. */
 export function deckFor(study, extras = []) {
-  return [...(DECK_BY_LEVEL.get(study.level) ?? []), ...extras];
+  const own = extras.filter((card) => (card.lang ?? 'zh') === study.lang);
+  return [...(DECKS[study.lang]?.byLevel.get(study.level) ?? []), ...own];
 }
 
 function findCard(study, key, extras) {
   if (key.startsWith('n:')) return extras.find((card) => card.key === key) ?? null;
   const card = CARD_BY_KEY.get(key);
-  if (!card || card.l !== study.level) return null;
+  if (!card || card.lang !== study.lang || card.l !== study.level) return null;
   return card;
 }
 
@@ -279,8 +311,8 @@ export function setStudyLimit(study, value) {
 }
 
 export function setStudyLevel(study, level) {
-  const next = Number(level);
-  if (!DECK_BY_LEVEL.has(next)) return { ok: false, error: 'invalid_level' };
+  const next = study.lang === 'zh' ? Number(level) : String(level ?? '');
+  if (!levelsFor(study.lang).includes(next)) return { ok: false, error: 'invalid_level' };
   if (study.level !== next) {
     study.level = next;
     study.rev += 1;
@@ -288,16 +320,29 @@ export function setStudyLevel(study, level) {
   return { ok: true, level: next };
 }
 
+/** Each player may study a different language; switching resets to its first level. */
+export function setStudyLang(study, lang) {
+  if (!LANGUAGES.includes(lang)) return { ok: false, error: 'invalid_lang' };
+  if (study.lang === lang) return { ok: true, lang };
+  study.lang = lang;
+  study.level = levelsFor(lang)[0];
+  study.rev += 1;
+  return { ok: true, lang };
+}
+
 export function levelProgress(study) {
-  const learned = new Map(STUDY_LEVELS.map((level) => [level, 0]));
+  const levels = levelsFor(study.lang);
+  const learned = new Map(levels.map((level) => [level, 0]));
   for (const [key, rec] of Object.entries(study.cards)) {
     if (rec.interval < 1) continue;
     const card = CARD_BY_KEY.get(key);
-    if (card && learned.has(card.l)) learned.set(card.l, learned.get(card.l) + 1);
+    if (card && card.lang === study.lang && learned.has(card.l)) {
+      learned.set(card.l, learned.get(card.l) + 1);
+    }
   }
-  return STUDY_LEVELS.map((level) => ({
+  return levels.map((level) => ({
     level,
-    total: deckSize(level),
+    total: deckSize(study.lang, level),
     learned: learned.get(level),
   }));
 }
@@ -335,6 +380,7 @@ export function studyStats(study, now = Date.now(), extras = []) {
 export function studyView(study, now = Date.now(), extras = []) {
   const stats = studyStats(study, now, extras);
   return {
+    lang: study.lang,
     level: stats.level,
     levels: levelProgress(study),
     today: {

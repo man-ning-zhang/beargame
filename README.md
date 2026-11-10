@@ -162,24 +162,30 @@ docker run -p 8787:8787 bear-together
 
 井字棋规则：X 先手，三子连珠获胜；赢的人负责明天的早餐（UI 是这么说的）。
 
-## 中文角 · Chinese Corner
+## 语言角 · Language Corner
 
-右侧第三个标签页是给学中文的一方准备的小 Anki：
+右侧第三个标签页是一个小 Anki，**两个人可以各学各的语言**：你在顶部选 `Français`（DELF A1–B1），TA 选 `中文`（HSK 1–6），进度互不干扰。
 
-- **词表**：HSK 2.0 的 1–6 级（150 / 147 / 298 / 598 / 1299 / 2497 个词），按词频从常用到少用排；
+- **两套词表**：中文是 HSK 2.0 的 1–6 级（150 / 147 / 298 / 598 / 1299 / 2497 个词），法语是 DELF A1–B1（1070 / 459 / 1050 个词），都按词频从常用到少用排；
 - **每天学多少你说了算**：底部「每天新词」可以选 10 / 20 / 50 / 不限；
 - **间隔重复**：每张卡可以选「再来一次 / 有点难 / 记住了」，服务器按 SM-2 的简化版安排下次出现时间，按钮上会直接写「3 天后」；
-- **点一点听发音**：用浏览器自带的中文语音（`speechSynthesis`），不需要联网、不用下载音频；右上角的音效开关同时管它；
-- **自己的词本**：把聊天里遇到的词加进去，填拼音、意思、备注和标签，标记一下就进入复习队列，并且排在新 HSK 词前面；
-- **完形填空**：中间那个「填空」视图会从例句里挖掉一个词，四选一。句子只挑实词（名词 / 动词 / 形容词）、空在句子中段、且目标词不是更长词的一部分；答对按「记住了」排期，答错立刻重来；
+- **点一点听发音**：用浏览器自带的语音（`speechSynthesis`，中文 `zh-CN` / 法语 `fr-FR`），不需要联网、不用下载音频；右上角的音效开关同时管它；
+- **自己的词本**：把聊天里遇到的词加进去，填拼音、意思、备注和标签，标记一下就进入复习队列，并且排在词表新词前面；自建卡按语言分开，中文卡不会混进法语组；
+- **完形填空**（目前只有中文）：中间那个「填空」视图会从例句里挖掉一个词，四选一。句子只挑实词（名词 / 动词 / 形容词）、空在句子中段、且目标词不是更长词的一部分；答对按「记住了」排期，答错立刻重来；
 - **笔记**：词本同时是笔记，支持搜索（字 / 拼音 / 意思 / 备注 / 标签）、编辑、删除；
 - **两个人各自的进度**：词表和进度都是每个人自己的，对方只能看到「TA 今天学了 8 个」这种一行摘要；两个人都完成当天目标时，小熊的亲密度会涨一点。
 
-词表来源：<https://github.com/clem109/hsk-vocabulary>（词表 + 规范读音）与
-<https://github.com/drkameleon/complete-hsk-vocabulary>（释义 / 词性 / 词频，MIT）。
-例句来源：<https://tatoeba.org>（CC BY 2.0 FR），繁体句子用 OpenCC 转成简体。
-重新生成：`npm run data:hsk`（词表）→ `npm run data:examples`（例句，会给 71% 的卡片配上句子），
-输出到 `server/data/hsk.json`，许可说明见 `server/data/LICENSE-hsk.txt`。
+数据和许可：
+
+- **中文词表**：<https://github.com/clem109/hsk-vocabulary>（词表 + 规范读音）+
+  <https://github.com/drkameleon/complete-hsk-vocabulary>（释义 / 词性 / 词频，MIT）
+- **中文例句**：<https://tatoeba.org>（CC BY 2.0 FR），繁体句子用 OpenCC 转成简体
+- **法语分级**：FLELex（Cental, UCLouvain），CEFR 分级词频
+- **法英释义**：FreeDict `fra-eng`（GPL v2+）
+
+重新生成：`npm run data:hsk` → `npm run data:examples` → `npm run data:french`，
+输出到 `server/data/`，中文词库许可见 `server/data/LICENSE-hsk.txt`。
+法语只做 A1–B1：B2 有 4789 个词条，但法英词典只覆盖 34%，做出来大半是空卡。
 
 ## 房间号和数据会丢吗
 
@@ -212,6 +218,7 @@ docker run -p 8787:8787 bear-together
 | `npm test` | 服务端房间 / 小熊 / 井字棋 / 间隔重复单元测试 |
 | `npm run data:hsk` | 从开源 HSK 词库重新生成 `server/data/hsk.json` |
 | `npm run data:examples` | 从 Tatoeba 给词库补例句（完形填空用） |
+| `npm run data:french` | 生成法语 DELF A1–B1 词库（FLELex + FreeDict） |
 | `npm run lint` | ESLint 检查前端和服务端 |
 | `npm run preview` | Vite 预览构建结果（不含 WebSocket，不建议用来联机） |
 
@@ -224,7 +231,7 @@ docker run -p 8787:8787 bear-together
 │   ├── game.js         # 纯逻辑：房间、小熊数值、聊天、井字棋、个人数据
 │   ├── study.js        # 间隔重复：词表、队列、调度
 │   ├── notebook.js     # 词本 / 自建卡片的校验与增删改
-│   ├── data/           # hsk.json（生成物）+ 词库许可
+│   ├── data/           # hsk.json / french.json（生成物）+ 词库许可
 │   └── *.test.js       # node:test 单元测试
 ├── src/
 │   ├── components/     # Bear / Scene / CarePanel / ChatPanel / GamePanel / StudyPanel / ClozePanel / NotebookPanel ...
@@ -250,7 +257,7 @@ npm run lint
 npm run build
 ```
 
-服务端测试覆盖：座位分配、重连、满房拒绝、动作效果与冷却、数值衰减与暂停、井字棋胜负 / 平局 / 换先手、聊天限流、快照不泄露 token、间隔重复调度与每日上限、完形填空出题与判分、自建卡片、个人数据合并与脏数据过滤。
+服务端测试覆盖：座位分配、重连、满房拒绝、动作效果与冷却、数值衰减与暂停、井字棋胜负 / 平局 / 换先手、聊天限流、快照不泄露 token、间隔重复调度与每日上限、完形填空出题与判分、中法两套词表与语言切换、自建卡片、个人数据合并与脏数据过滤。
 
 ## 已知限制 / 还可以加什么
 

@@ -18,6 +18,7 @@ import {
   nextClozeFor,
   performAction,
   performStudyGrade,
+  performStudyLangChange,
   performStudyLevelChange,
   performStudyLimitChange,
   placeMark,
@@ -458,10 +459,12 @@ function handleMessage(ws, raw) {
 
     const result =
       msg.action === 'level'
-        ? performStudyLevelChange(room, seat, Number(msg.level), now)
-        : msg.action === 'limit'
-          ? performStudyLimitChange(room, seat, Number(msg.limit), now)
-          : performStudyGrade(room, seat, msg.key ?? msg.word, msg.grade, now);
+        ? performStudyLevelChange(room, seat, msg.level, now)
+        : msg.action === 'lang'
+          ? performStudyLangChange(room, seat, String(msg.lang ?? ''), now)
+          : msg.action === 'limit'
+            ? performStudyLimitChange(room, seat, Number(msg.limit), now)
+            : performStudyGrade(room, seat, msg.key ?? msg.word, msg.grade, now);
     if (result.ok) {
       broadcast(room);
     } else {
