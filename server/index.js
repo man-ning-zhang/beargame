@@ -10,9 +10,9 @@ import {
   applyPersonal,
   changeNote,
   createRoom,
+  detachSocket,
   joinRoom,
   makeRoomCode,
-  markOffline,
   normalizeCode,
   answerClozeFor,
   nextClozeFor,
@@ -294,20 +294,25 @@ function send(ws, message) {
 
 function broadcast(room) {
   // The room snapshot is shared, but flashcard progress is per player, so each
-  // seat gets its own view of the same state. The raw personal copy only rides
-  // along when it changed, so the browser can mirror it into localStorage.
+  // seat gets its own view of the same state. A seat can have several device
+  // sockets (phone + computer), and each one tracks whether it has the latest
+  // personal blob independently. The raw personal copy only rides along when it
+  // changed for that device, so the browser can mirror it into localStorage.
   const now = Date.now();
   for (const seat of ['host', 'guest']) {
     const player = room.seats[seat];
-    if (!player?.ws || player.ws.readyState !== 1) continue;
+    if (!player) continue;
     const personal = room.personal?.[seat];
-    const includePersonal = Boolean(personal) && player.ws.personalRev !== personal.rev;
-    const payload = JSON.stringify({
-      type: 'state',
-      room: publicRoom(room, now, seat, { includePersonal }),
-    });
-    player.ws.send(payload);
-    if (includePersonal) player.ws.personalRev = personal.rev;
+    for (const ws of player.sockets) {
+      if (!ws || ws.readyState !== 1) continue;
+      const includePersonal = Boolean(personal) && ws.personalRev !== personal.rev;
+      const payload = JSON.stringify({
+        type: 'state',
+        room: publicRoom(room, now, seat, { includePersonal }),
+      });
+      ws.send(payload);
+      if (includePersonal) ws.personalRev = personal.rev;
+    }
   }
 }
 
@@ -345,18 +350,11 @@ function bindSocket(ws, room, seat, token, extra = {}) {
   const player = room.seats[seat];
   if (!player) return false;
 
-  if (player.ws && player.ws !== ws) {
-    const previous = player.ws;
-    player.ws = null;
-    send(previous, {
-      type: 'error',
-      code: 'replaced',
-      message: '这间小屋在另一个窗口打开了。',
-    });
-    previous.close(4001, 'replaced');
-  }
-
-  player.ws = ws;
+  // A person may connect from more than one device (phone + computer). Keep
+  // every live socket on the seat instead of replacing the previous one, and
+  // prune any that are no longer open so a refresh cannot leave zombies behind.
+  player.sockets = player.sockets.filter((sock) => sock === ws || (sock && sock.readyState === 1));
+  if (!player.sockets.includes(ws)) player.sockets.push(ws);
   player.online = true;
   player.lastSeen = Date.now();
   ws.roomCode = room.code;
@@ -378,13 +376,22 @@ function leaveCurrentRoom(ws, reason, now = Date.now()) {
   }
   const player = room.seats[seat];
   const name = player?.name ?? '🐻';
-  if (vacateSeat(room, seat, now)) {
-    const otherSeat = seat === 'host' ? 'guest' : 'host';
+  // Remove just this device from the seat; the other sockets (if any) stay.
+  const idx = player?.sockets.indexOf(ws);
+  if (idx !== -1) player.sockets.splice(idx, 1);
+
+  const otherSeat = seat === 'host' ? 'guest' : 'host';
+  if (player && player.sockets.length === 0) {
+    // The last device for this person left: free the seat entirely.
+    vacateSeat(room, seat, now);
     if (room.seats[otherSeat]) {
       systemChat(room, reason === 'leave' ? 'leave' : 'expired', { name }, now);
     }
-    broadcast(room);
+  } else if (player) {
+    // Other devices of the same person are still here; keep the seat warm.
+    player.lastSeen = now;
   }
+  broadcast(room);
   ws.roomCode = null;
   ws.seat = null;
 }
@@ -493,7 +500,8 @@ function handleMessage(ws, raw) {
 
   const room = currentRoom(ws);
   const seat = ws.seat;
-  if (!room || !seat || room.seats[seat]?.ws !== ws) {
+  const player = room?.seats[seat];
+  if (!room || !seat || !player || !player.sockets.includes(ws)) {
     sendError(ws, 'not_in_room', '先进到一间小屋里吧。');
     return;
   }
@@ -624,8 +632,8 @@ wss.on('connection', (ws, req) => {
   ws.on('close', () => {
     const room = currentRoom(ws);
     const seat = ws.seat;
-    if (room && seat && room.seats[seat]?.ws === ws) {
-      markOffline(room, seat, Date.now());
+    if (room && seat) {
+      detachSocket(room, seat, ws, Date.now());
       broadcast(room);
     }
     ws.roomCode = null;

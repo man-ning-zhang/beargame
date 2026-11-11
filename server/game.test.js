@@ -5,6 +5,7 @@ import {
   addChat,
   bondInfo,
   createRoom,
+  detachSocket,
   joinRoom,
   markOffline,
   normalizeCode,
@@ -55,6 +56,35 @@ test('reconnects with the same token instead of taking a third seat', () => {
   assert.equal(again.seat, 'guest');
   assert.equal(again.reconnected, true);
   assert.equal(room.seats.guest.online, true);
+});
+
+test('a second device with the same name shares the seat', () => {
+  const { room } = roomWithPair();
+  const phone = joinRoom(room, { name: '小满', token: 'host-phone-5678', now: T0 + 100 });
+  assert.equal(phone.ok, true);
+  assert.equal(phone.seat, 'host');
+  assert.equal(phone.reconnected, true);
+  assert.equal(room.seats.host.online, true);
+
+  // The partner can still take the guest seat afterwards.
+  const partner = joinRoom(room, { name: '阿远', token: 'guest-phone-5678', now: T0 + 150 });
+  assert.equal(partner.seat, 'guest');
+});
+
+test('a seat stays online until its last device disconnects', () => {
+  const { room } = roomWithPair();
+  const phoneSock = {};
+  const laptopSock = {};
+  room.seats.host.sockets.push(phoneSock, laptopSock);
+
+  assert.equal(detachSocket(room, 'host', phoneSock, T0 + 200), true);
+  assert.equal(room.seats.host.online, true, 'the laptop is still connected');
+  assert.equal(room.seats.host.sockets.length, 1);
+
+  assert.equal(detachSocket(room, 'host', laptopSock, T0 + 300), true);
+  assert.equal(room.seats.host.online, false, 'the last device just left');
+  assert.equal(room.seats.host.sockets.length, 0);
+  assert.equal(room.seats.host.name, '小满', 'the seat keeps the name for rejoining');
 });
 
 test('normalizes shared room codes and links', () => {

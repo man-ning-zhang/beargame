@@ -173,6 +173,20 @@ function findSeatByToken(room, token) {
   return null;
 }
 
+/**
+ * A person is identified by their display name within a room, so a second
+ * device (phone + computer) joins the same seat instead of taking a third.
+ * Two different people who happen to share a name would collide — acceptable
+ * for a couple's room where each side picks a distinct name.
+ */
+function findSeatByName(room, name) {
+  for (const seat of ['host', 'guest']) {
+    const player = room.seats[seat];
+    if (player && player.name === name) return seat;
+  }
+  return null;
+}
+
 function seatIsFree(room, seat, now) {
   const player = room.seats[seat];
   if (!player) return true;
@@ -215,6 +229,18 @@ export function joinRoom(room, { name, token, now = Date.now() } = {}) {
     return { ok: true, seat: existingSeat, token: safeToken, reconnected: true, replaced: false };
   }
 
+  // A second device for the same person (same display name) joins their seat
+  // instead of claiming a third seat, so one person can sit on phone + computer.
+  const sameNameSeat = findSeatByName(room, cleanName);
+  if (sameNameSeat) {
+    const player = room.seats[sameNameSeat];
+    player.name = cleanName;
+    player.online = true;
+    player.lastSeen = nowMs;
+    room.lastActive = nowMs;
+    return { ok: true, seat: sameNameSeat, token: safeToken, reconnected: true, replaced: false };
+  }
+
   const otherOnlineBefore = ['host', 'guest'].some((seat) => room.seats[seat]?.online);
   let seat = null;
   if (seatIsFree(room, 'host', nowMs)) seat = 'host';
@@ -235,7 +261,7 @@ export function joinRoom(room, { name, token, now = Date.now() } = {}) {
     lastSeen: nowMs,
     lastChatAt: 0,
     joinedAt: nowMs,
-    ws: null,
+    sockets: [],
   };
   room.lastActive = nowMs;
 
@@ -246,20 +272,51 @@ export function joinRoom(room, { name, token, now = Date.now() } = {}) {
   return { ok: true, seat, token: safeToken, reconnected: false, replaced };
 }
 
-/** Mark a socket as gone but keep the seat warm for a quick reconnect. */
+/**
+ * Mark a whole seat as gone (no devices left). Kept for single-socket callers
+ * and tests; live disconnects now go through detachSocket so a person stays
+ * online while any one of their devices is still connected.
+ */
 export function markOffline(room, seat, now = Date.now()) {
   const player = room.seats[seat];
   if (!player) return false;
   player.online = false;
   player.lastSeen = now;
-  player.ws = null;
+  player.sockets = [];
   room.lastActive = now;
+  return true;
+}
+
+/**
+ * Remove one device's socket from a seat. The seat stays online as long as at
+ * least one device remains connected, so closing a laptop while the phone is
+ * still open does not drop the person from the room.
+ */
+export function detachSocket(room, seat, ws, now = Date.now()) {
+  const player = room.seats[seat];
+  if (!player) return false;
+  const idx = player.sockets.indexOf(ws);
+  if (idx === -1) return false;
+  player.sockets.splice(idx, 1);
+  player.lastSeen = now;
+  if (player.sockets.length === 0) {
+    player.online = false;
+    room.lastActive = now;
+  }
   return true;
 }
 
 /** Explicitly leave / expire a seat. */
 export function vacateSeat(room, seat, now = Date.now()) {
   if (!room.seats[seat]) return false;
+  const player = room.seats[seat];
+  for (const sock of player.sockets) {
+    try {
+      sock.close(1000, 'seat vacated');
+    } catch {
+      // The socket may already be closing; ignore.
+    }
+  }
   room.seats[seat] = null;
   room.game = freshGame('host');
   room.personal[seat] = createPersonal();
@@ -620,7 +677,13 @@ export function bondInfo(points) {
 export function publicRoom(room, now = Date.now(), seat = null, options = {}) {
   const publicSeat = (seatName) => {
     const player = room.seats[seatName];
-    return player ? { name: player.name, online: Boolean(player.online) } : null;
+    return player
+      ? {
+          name: player.name,
+          online: Boolean(player.online),
+          devices: player.sockets.length,
+        }
+      : null;
   };
   const cooldowns = {};
   for (const action of Object.keys(ACTIONS)) {

@@ -182,6 +182,13 @@ const Name = styled.span`
   text-overflow: ellipsis;
 `;
 
+const DeviceCount = styled.span`
+  color: rgba(255, 248, 236, 0.45);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  flex: none;
+`;
+
 const IconButton = styled.button`
   display: grid;
   place-items: center;
@@ -331,6 +338,11 @@ export default function RoomHeader() {
               {initialOf(mine?.name)}
             </Avatar>
             <Name className="name">{mine?.name || t('room.you')}</Name>
+            {Boolean(mine?.devices > 1) && (
+              <DeviceCount title={t('room.devices', { count: mine.devices })}>
+                ×{mine.devices}
+              </DeviceCount>
+            )}
           </PlayerChip>
           {partner ? (
             <PlayerChip>
@@ -338,6 +350,11 @@ export default function RoomHeader() {
                 {initialOf(partner.name)}
               </Avatar>
               <Name className="name">{partner.name}</Name>
+              {Boolean(partner.devices > 1) && (
+                <DeviceCount title={t('room.devices', { count: partner.devices })}>
+                  ×{partner.devices}
+                </DeviceCount>
+              )}
             </PlayerChip>
           ) : (
             <PlayerChip $empty>
