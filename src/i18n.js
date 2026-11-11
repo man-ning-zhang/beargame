@@ -95,6 +95,11 @@ const zh = {
   'scene.mood.low': '小熊有点想你',
   'scene.mood.sad': '小熊有点低落，抱抱它吧',
 
+  'fish.name': '小鱼',
+  'fish.peek1': '小熊在吗？',
+  'fish.peek2': '小熊睡了吗？',
+  'fish.peek3': '来看看小熊～',
+
   'bear.pat': '摸摸小熊',
   'bear.aria': '一只毛茸茸的小熊',
   'bear.rumble': '咕…',
@@ -388,6 +393,11 @@ const en = {
   'scene.mood.good': 'The bear is feeling pretty good',
   'scene.mood.low': 'The bear misses you a little',
   'scene.mood.sad': 'The bear is feeling low — give it a hug',
+
+  'fish.name': 'Fishy',
+  'fish.peek1': 'Bear home?',
+  'fish.peek2': 'Is the bear asleep?',
+  'fish.peek3': 'Just checking on the bear!',
 
   'bear.pat': 'Pat the bear',
   'bear.aria': 'A fluffy little bear',

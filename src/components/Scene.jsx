@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import styled, { keyframes } from 'styled-components';
 import Bear from './Bear';
+import Fish from './Fish';
 import { breakpoints, palette, shadows } from '../theme';
 import { useI18n } from '../context/LanguageContext';
 
@@ -280,6 +281,70 @@ const Books = styled.div`
   }
 `;
 
+const knockShake = keyframes`
+  0%, 100% { transform: translateX(0) rotate(0); }
+  20% { transform: translateX(-2px) rotate(-0.6deg); }
+  40% { transform: translateX(2px) rotate(0.6deg); }
+  60% { transform: translateX(-1.5px) rotate(-0.4deg); }
+  80% { transform: translateX(1.5px) rotate(0.4deg); }
+`;
+
+const Door = styled.div`
+  position: absolute;
+  left: 5.5%;
+  top: 30%;
+  width: 13.5%;
+  height: 43%;
+  z-index: 1;
+  border-radius: 8px 8px 3px 3px;
+  background: linear-gradient(180deg, #6e4a39, #573829);
+  border: 2px solid rgba(40, 24, 18, 0.5);
+  box-shadow:
+    inset 0 0 0 3px rgba(255, 235, 210, 0.06),
+    inset 0 10px 22px rgba(0, 0, 0, 0.32),
+    0 12px 20px -12px rgba(0, 0, 0, 0.55);
+  transform-origin: left center;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 13%;
+    right: 13%;
+    top: 9%;
+    height: 33%;
+    border-radius: 5px;
+    background: linear-gradient(180deg, #7a5544, #5c3c2e);
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.32);
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: 13%;
+    right: 13%;
+    bottom: 8%;
+    height: 34%;
+    border-radius: 5px;
+    background: linear-gradient(180deg, #7a5544, #5c3c2e);
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.32);
+  }
+
+  &.is-knocking {
+    animation: ${knockShake} 0.22s ease-in-out;
+  }
+`;
+
+const Knob = styled.div`
+  position: absolute;
+  right: 13%;
+  top: 51%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffe2a6, #c79f4c);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+`;
+
 const BondPill = styled.div`
   position: absolute;
   top: 16px;
@@ -502,6 +567,15 @@ export default function Scene({ room, me, bubble, reaction, onPet, connected }) 
   const mood = moodCopy(room.stats.mood);
   const bubbleIsMine = bubble?.seat === me;
 
+  const [knock, setKnock] = useState(false);
+  const knockTimer = useRef(null);
+  const handleKnock = useCallback(() => {
+    setKnock(true);
+    clearTimeout(knockTimer.current);
+    knockTimer.current = setTimeout(() => setKnock(false), 220);
+  }, []);
+  useEffect(() => () => clearTimeout(knockTimer.current), []);
+
   return (
     <SceneCard>
       <WallGlow />
@@ -570,6 +644,10 @@ export default function Scene({ room, me, bubble, reaction, onPet, connected }) 
         <span />
       </Books>
 
+      <Door className={knock ? 'is-knocking' : ''} aria-hidden="true">
+        <Knob />
+      </Door>
+
       <BondPill>
         <span aria-hidden="true">❤️</span>
         <strong>{t(`bond.level.${room.bond.level}`)}</strong>
@@ -604,6 +682,8 @@ export default function Scene({ room, me, bubble, reaction, onPet, connected }) 
       <BearSpot>
         <Bear stats={room.stats} reaction={reaction} onPet={onPet} disabled={!connected} />
       </BearSpot>
+
+      <Fish onKnock={handleKnock} />
 
       <MoodNote $color={mood.color}>{t(mood.key)}</MoodNote>
       <Hint>{t('scene.hint')}</Hint>

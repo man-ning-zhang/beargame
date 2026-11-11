@@ -108,6 +108,10 @@ const SOUNDS = {
     note(context, 220, at, 0.16, { type: 'sine', volume: 0.02 });
     note(context, 196, at + 0.1, 0.2, { type: 'sine', volume: 0.018 });
   },
+  knock: (context, at) => {
+    note(context, 196, at, 0.1, { type: 'sine', volume: 0.05 });
+    note(context, 146.83, at + 0.02, 0.14, { type: 'sine', volume: 0.045 });
+  },
 };
 
 export function playSound(name) {
