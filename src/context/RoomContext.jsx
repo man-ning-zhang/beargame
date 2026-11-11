@@ -234,6 +234,17 @@ export function RoomProvider({ children }) {
           setLastRoom(message.code);
           setInitialCode(message.code);
           setUrlRoom(message.code);
+          // From here on this is a room we belong to, so every reconnection must
+          // re-join it by code. Keeping the original "create" intent would make
+          // each reconnect open a brand new cabin and quietly move the pair to
+          // another room — which looks exactly like "my taps do nothing".
+          if (desiredRef.current) {
+            desiredRef.current = {
+              mode: 'join',
+              code: message.code,
+              name: desiredRef.current.name || readStorage(KEYS.name) || '',
+            };
+          }
           playSound(reconnecting ? 'join' : 'join');
           break;
         }
