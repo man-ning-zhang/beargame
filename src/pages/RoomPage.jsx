@@ -9,7 +9,7 @@ import StudyPanel from '../components/StudyPanel';
 import { useRoom } from '../context/RoomContext';
 import { useI18n } from '../context/LanguageContext';
 import { playSound } from '../utils/sound';
-import { useServerNow } from '../utils/useServerNow';
+import { useActivityBusy } from '../utils/useServerNow';
 import { breakpoints, palette, shadows } from '../theme';
 
 const fadeUp = keyframes`
@@ -237,10 +237,10 @@ export default function RoomPage() {
     toggleNoteStudy,
   } = useRoom();
   const { t } = useI18n();
-  const serverNow = useServerNow(clockOffset);
   // The server settles a finished chore on its next tick; until then local
-  // time is the authority for whether the bear is still busy.
-  const busy = Boolean(room?.activity && serverNow < room.activity.endsAt);
+  // time is the authority for whether the bear is still busy. This flips only
+  // at the chore's end instead of re-rendering the whole page on a clock.
+  const busy = useActivityBusy(room?.activity, clockOffset);
 
   const [tab, setTab] = useState('chat');
   const [reaction, setReaction] = useState(null);

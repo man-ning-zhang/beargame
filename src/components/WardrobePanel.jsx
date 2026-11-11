@@ -1,6 +1,6 @@
 import React from 'react';
-import styled from 'styled-components';
-import { OutfitSwatch } from './OutfitArt';
+import styled, { keyframes } from 'styled-components';
+import { OutfitSwatch, TryOnPreview } from './OutfitArt';
 import { WHO, outfitFor, outfitsFor } from '../utils/wardrobe';
 import { useI18n } from '../context/LanguageContext';
 import { breakpoints, palette, shadows } from '../theme';
@@ -8,6 +8,11 @@ import { breakpoints, palette, shadows } from '../theme';
 /* A small light card that sits under the scene when the pair steps into the
    dressing room. The hanger previews are SVG, so the clothes are legible even
    when Fishy is away on his skateboard. */
+
+const popIn = keyframes`
+  from { opacity: 0; transform: translateY(6px) scale(0.94); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+`;
 
 const Panel = styled.section`
   margin-top: 14px;
@@ -65,6 +70,60 @@ const Group = styled.div`
     margin-top: 15px;
     padding-top: 14px;
     border-top: 1px dashed rgba(61, 47, 41, 0.12);
+  }
+`;
+
+/* The mirror is the answer to "did it actually change?". Tapping a hanger
+   scrolls the scene off screen on a phone, so the pair need to see the result
+   right here: two stand-ins redrawn in the colours just picked. */
+const Mirror = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 10px;
+  border-radius: 18px;
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.94), rgba(250, 236, 222, 0.82));
+  border: 1px solid rgba(61, 47, 41, 0.07);
+`;
+
+const TryOn = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: 14px;
+  animation: ${popIn} 0.34s ease-out;
+
+  .label {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .who {
+    color: ${palette.muted};
+    font-size: 9.5px;
+    letter-spacing: 0.03em;
+  }
+
+  .wearing {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    overflow: hidden;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  @media (max-width: ${breakpoints.small}) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
   }
 `;
 
@@ -166,6 +225,25 @@ export default function WardrobePanel({ outfits = {}, connected = true, busy = f
         </div>
         <Shared>✦ {t('wardrobe.shared')}</Shared>
       </Head>
+
+      <Mirror aria-label={t('wardrobe.mirror')}>
+        {WHO.map((who) => {
+          const current = outfitFor(who, outfits[who]);
+          return (
+            <TryOn key={`${who}-${current.id}`}>
+              <TryOnPreview who={who} outfit={current} />
+              <span className="label">
+                <span className="who">
+                  {t(`wardrobe.${who}`)} · {t('wardrobe.current')}
+                </span>
+                <span className="wearing">
+                  {current.icon} {t(current.labelKey)}
+                </span>
+              </span>
+            </TryOn>
+          );
+        })}
+      </Mirror>
 
       {WHO.map((who) => {
         const current = outfitFor(who, outfits[who]);

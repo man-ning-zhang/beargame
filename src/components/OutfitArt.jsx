@@ -312,3 +312,164 @@ export function OutfitSwatch({ who, outfit }) {
 }
 
 export const SWATCH_OUTFITS = { bear: BEAR_OUTFITS, fish: FISH_OUTFITS };
+
+/* ------------------------------------------------------- try-on mirror */
+
+/**
+ * A tiny full-body stand-in for each character, drawn in the colours of the
+ * outfit they are currently wearing. It lives inside the wardrobe card so the
+ * change is visible right where the hanger was tapped, without scrolling back
+ * up to the scene. Deliberately plain: solid fills, no gradients, no shared ids.
+ */
+export function TryOnPreview({ who, outfit }) {
+  if (who === 'bear') {
+    const { colors, shape, headwear, accent } = outfit;
+    return (
+      <svg viewBox="0 0 100 118" width="62" height="72" role="img" aria-hidden="true">
+        <circle cx="28" cy="26" r="9" fill="#8f5d3d" />
+        <circle cx="28" cy="26" r="4.6" fill="#e7b39a" />
+        <circle cx="72" cy="26" r="9" fill="#8f5d3d" />
+        <circle cx="72" cy="26" r="4.6" fill="#e7b39a" />
+
+        <ellipse cx="50" cy="95" rx="24" ry="21" fill="#b07c55" />
+        <circle cx="50" cy="48" r="24" fill="#b07c55" />
+        <ellipse cx="50" cy="58" rx="13" ry="10" fill="#f6ddc1" />
+        <ellipse cx="50" cy="55" rx="4" ry="3" fill="#3a2621" />
+        <circle cx="41" cy="44" r="2.6" fill="#3a2621" />
+        <circle cx="59" cy="44" r="2.6" fill="#3a2621" />
+
+        {shape === 'scarf' ? (
+          <g>
+            <path d="M35 74 Q50 82 65 74 L64 80 Q50 88 36 80 Z" fill={colors.dark} />
+            <path d="M35 74 Q50 82 65 74" stroke={colors.trim} strokeWidth="1.6" fill="none" />
+            <path
+              d="M50 82 C46 78, 43 75, 46 72 C48 70, 50 72, 50 74 C50 72, 52 70, 54 72 C57 75, 54 78, 50 82 Z"
+              fill="#f1b94f"
+            />
+          </g>
+        ) : (
+          <g>
+            <path
+              d="M28 74 Q50 84 72 74 L74 106 Q50 112 26 106 Z"
+              fill={colors.light}
+              stroke={colors.dark}
+              strokeWidth="1.4"
+            />
+            {shape === 'raincoat' && (
+              <g>
+                <path d="M42 75 L50 84 L58 75" stroke={colors.trim} strokeWidth="2.4" fill="none" />
+                <line x1="50" y1="84" x2="50" y2="104" stroke={colors.dark} strokeWidth="1.2" opacity="0.6" />
+                {[92, 100].map((y) => (
+                  <circle key={y} cx="54" cy={y} r="1.8" fill={accent} />
+                ))}
+              </g>
+            )}
+            {shape === 'sweater' && (
+              <g>
+                <path d="M40 74 L50 88 L60 74" stroke={colors.trim} strokeWidth="3.4" fill="none" />
+                <path d={starPath(50, 96, 6.5)} fill={accent} opacity="0.9" />
+              </g>
+            )}
+            {shape === 'tux' && (
+              <g>
+                <path d="M42 74 L50 92 L58 74 Z" fill="#fff8ec" />
+                <path d="M44 80 L38 76 L38 84 Z M56 80 L62 76 L62 84 Z" fill={accent} />
+              </g>
+            )}
+          </g>
+        )}
+
+        {headwear === 'hood' && (
+          <path
+            d="M27 46 Q28 20 50 19 Q72 20 73 46 L64 46 Q62 30 50 29 Q38 30 36 46 Z"
+            fill={colors.dark}
+          />
+        )}
+        {headwear === 'beanie' && (
+          <g>
+            <path d="M33 36 Q36 13 50 11 Q64 13 67 36 Z" fill={colors.dark} />
+            <rect x="32" y="33" width="36" height="7" rx="3.5" fill={colors.trim} />
+            <circle cx="50" cy="9" r="4.6" fill={colors.trim} />
+          </g>
+        )}
+        {headwear === 'tophat' && (
+          <g>
+            <rect x="39" y="4" width="22" height="18" rx="2.5" fill={colors.dark} />
+            <rect x="39" y="16" width="22" height="5" fill={accent} opacity="0.9" />
+            <rect x="31" y="21" width="38" height="5" rx="2.5" fill={colors.dark} />
+          </g>
+        )}
+      </svg>
+    );
+  }
+
+  const { top, bottom, hat, extra } = outfit;
+  return (
+    <svg viewBox="0 0 100 118" width="62" height="72" role="img" aria-hidden="true">
+      <ellipse cx="50" cy="72" rx="27" ry="34" fill="#f2a869" />
+      <path d="M26 60 Q12 46 12 30 Q26 34 32 46" fill="#e8964f" />
+      <path d="M74 60 Q88 46 88 30 Q74 34 68 46" fill="#e8964f" />
+      <circle cx="41" cy="58" r="3.4" fill="#3a2621" />
+      <circle cx="59" cy="58" r="3.4" fill="#3a2621" />
+      <circle cx="42.2" cy="56.8" r="1.1" fill="#fff8ec" />
+      <circle cx="60.2" cy="56.8" r="1.1" fill="#fff8ec" />
+      <ellipse cx="34" cy="68" rx="5" ry="3" fill="#e8795f" opacity="0.35" />
+      <ellipse cx="66" cy="68" rx="5" ry="3" fill="#e8795f" opacity="0.35" />
+      <path d="M45 70 Q50 74 55 70" stroke="#a4592f" strokeWidth="2" fill="none" strokeLinecap="round" />
+
+      <path d="M32 54 L68 54 L68 84 Q50 90 32 84 Z" fill={top.light} stroke={top.edge} strokeWidth="1.4" />
+      <path d="M32 54 Q22 57 22 66 Q22 70 26 70 Q30 70 33 64 Z" fill={top.light} stroke={top.edge} strokeWidth="1.4" />
+      <path d="M68 54 Q78 57 78 66 Q78 70 74 70 Q70 70 67 64 Z" fill={top.light} stroke={top.edge} strokeWidth="1.4" />
+      {top.print === 'star' && <path d={starPath(50, 66, 4.4)} fill={top.printColor} />}
+      {top.print === 'stars' && (
+        <g fill={top.printColor}>
+          <path d={starPath(44, 62, 2.6)} />
+          <path d={starPath(58, 72, 3)} />
+        </g>
+      )}
+      {outfit.shape === 'shirt' && (
+        <g>
+          <path d="M45 54 L50 62 L55 54 Z" fill={top.edge} opacity="0.85" />
+          <path d="M47 60 L50 63 L53 60 L50 58 Z" fill="#cf5e46" />
+        </g>
+      )}
+
+      <path
+        d={`M32 82 L68 82 L${bottom.shape === 'pants' ? 67 : 65} ${bottom.shape === 'pants' ? 108 : 100} Q50 ${bottom.shape === 'pants' ? 113 : 105} ${bottom.shape === 'pants' ? 33 : 35} ${bottom.shape === 'pants' ? 108 : 100} Z`}
+        fill={bottom.light}
+        stroke={bottom.edge}
+        strokeWidth="1.3"
+      />
+      <rect x="31" y="80" width="38" height="6" rx="3" fill={bottom.dark} />
+
+      {extra === 'apron' && (
+        <path d="M38 66 L62 66 L66 96 Q50 101 34 96 Z" fill="#d9705e" stroke="#b9564a" strokeWidth="1.2" />
+      )}
+
+      {hat.shape === 'cap' && (
+        <g>
+          <path d="M30 40 A20 20 0 0 1 70 40 Z" fill={hat.light} />
+          <rect x="14" y="37" width="15" height="7" rx="3.5" fill={hat.dark} />
+        </g>
+      )}
+      {hat.shape === 'toque' && (
+        <g>
+          <path d="M29 40 Q24 22 38 24 Q41 14 50 17 Q61 14 64 24 Q78 22 71 40 Z" fill={hat.light} stroke={hat.dark} strokeWidth="1.2" />
+          <rect x="28" y="37" width="44" height="8" rx="2.5" fill={hat.light} stroke={hat.dark} strokeWidth="1.2" />
+        </g>
+      )}
+      {hat.shape === 'nightcap' && (
+        <g>
+          <path d="M28 40 Q46 16 70 36 Q60 45 50 38 Q40 45 28 40 Z" fill={hat.light} stroke={hat.dark} strokeWidth="1.2" />
+          <circle cx="71" cy="35" r="4.6" fill="#fff3d4" />
+        </g>
+      )}
+      {hat.shape === 'beret' && (
+        <g>
+          <path d="M29 40 Q34 22 52 23 Q70 24 71 40 Z" fill={hat.light} stroke={hat.dark} strokeWidth="1.2" />
+          <path d="M27 39 Q50 46 73 39" stroke={hat.dark} strokeWidth="3" fill="none" strokeLinecap="round" />
+        </g>
+      )}
+    </svg>
+  );
+}

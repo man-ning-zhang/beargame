@@ -126,7 +126,9 @@ const Fill = styled.div`
   width: ${(props) => Math.max(0, Math.min(100, props.$value))}%;
   border-radius: inherit;
   background: linear-gradient(90deg, ${palette.coral}, ${palette.amber});
-  transition: width 0.25s linear;
+  /* The clock ticks once a second, so the bar glides between ticks instead of
+     stepping. Keeps the panel cheap without looking choppy. */
+  transition: width 1.05s linear;
   animation: ${(props) => (props.$waiting ? shimmer : 'none')} 1.2s ease-in-out infinite;
 `;
 
@@ -355,7 +357,9 @@ export default function ActivityPanel({
   onGoToRoom = null,
 }) {
   const { t } = useI18n();
-  const now = useServerNow(clockOffset);
+  // Tick once a second while a chore runs (the bar glides between ticks), and
+  // barely at all when the room is idle.
+  const now = useServerNow(clockOffset, activity ? 1000 : 60000);
   const running = Boolean(activity && now < activity.endsAt);
   const total = Math.max(1, (activity?.endsAt ?? 0) - (activity?.startedAt ?? 0));
   const progress = activity ? ((now - activity.startedAt) / total) * 100 : 0;

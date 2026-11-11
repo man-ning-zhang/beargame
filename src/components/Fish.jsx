@@ -301,7 +301,9 @@ export default function Fish({
 
   useEffect(() => {
     setNow(Date.now() + clockOffset);
-    const timer = window.setInterval(() => setNow(Date.now() + clockOffset), 500);
+    // Cooldown badges are shown in whole seconds, so a 1s tick is enough and
+    // halves the repaints of Fishy's fairly large SVG.
+    const timer = window.setInterval(() => setNow(Date.now() + clockOffset), 1000);
     return () => window.clearInterval(timer);
   }, [clockOffset]);
 

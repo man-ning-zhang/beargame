@@ -634,7 +634,10 @@ function Market({ night, sun, doorClass }) {
 
 /** Full-bleed illustration for the current room. Living keeps the original
  *  window-and-rug scene, so this returns null there. */
-export function RoomDecor({ roomId, period = 'night', knock = false }) {
+/* Memoised: this whole illustration is a few hundred SVG nodes and it only
+   depends on three primitives. Room state arriving every few seconds should not
+   rebuild it. */
+export const RoomDecor = React.memo(function RoomDecor({ roomId, period = 'night', knock = false }) {
   const light = LIGHT[period] ?? LIGHT.night;
   const night = period === 'night';
   const sun = SUN_POS[period] ?? SUN_POS.noon;
@@ -669,7 +672,7 @@ export function RoomDecor({ roomId, period = 'night', knock = false }) {
       {roomId === 'market' && <Market night={night} sun={sun} doorClass={doorClass} />}
     </DecorSvg>
   );
-}
+});
 
 /* ------------------------------------------------------------- room picker */
 
