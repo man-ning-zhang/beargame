@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import styled, { keyframes } from 'styled-components';
+import styled, { css, keyframes } from 'styled-components';
 import { palette } from '../theme';
 import { useI18n } from '../context/LanguageContext';
 import { playSound } from '../utils/sound';
@@ -54,10 +54,10 @@ const Figure = styled.div`
   width: 100%;
   transform-origin: 50% 92%;
   ${(props) => {
-    if (props.$phase === 'knock') return `animation: ${knock} 1.25s ease-in-out both;`;
-    if (props.$phase === 'peek') return `animation: ${lean} 2.6s ease-in-out both;`;
-    if (props.$wave) return `animation: ${wave} 0.7s ease-in-out both;`;
-    return `animation: ${bob} 3.4s ease-in-out infinite;`;
+    if (props.$phase === 'knock') return css`animation: ${knock} 1.25s ease-in-out both;`;
+    if (props.$phase === 'peek') return css`animation: ${lean} 2.6s ease-in-out both;`;
+    if (props.$wave) return css`animation: ${wave} 0.7s ease-in-out both;`;
+    return css`animation: ${bob} 3.4s ease-in-out infinite;`;
   }}
 
   svg {

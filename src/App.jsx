@@ -1,5 +1,6 @@
 import React from 'react';
 import Backdrop from './components/Backdrop';
+import ErrorBoundary from './components/ErrorBoundary';
 import { LanguageProvider } from './context/LanguageContext';
 import Toast from './components/Toast';
 import { RoomProvider, useRoom } from './context/RoomContext';
@@ -17,7 +18,9 @@ export default function App() {
       <RoomProvider>
         <Backdrop />
         <main className="app-shell">
-          <Screen />
+          <ErrorBoundary>
+            <Screen />
+          </ErrorBoundary>
         </main>
         <Toast />
       </RoomProvider>
