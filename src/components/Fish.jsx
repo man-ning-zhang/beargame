@@ -180,7 +180,7 @@ export default function Fish({ onKnock = null }) {
       {phase === 'peek' && peekLine && <Bubble>{t(peekLine)}</Bubble>}
       {waving && <Wave aria-hidden="true">👋</Wave>}
       <Figure $phase={phase} $wave={waving}>
-        <svg viewBox="0 0 120 178" aria-hidden="true">
+        <svg viewBox="0 0 120 192" aria-hidden="true">
           <defs>
             <radialGradient id="fishBody" cx="36%" cy="24%" r="82%">
               <stop offset="0%" stopColor="#f7b083" />
@@ -195,53 +195,102 @@ export default function Fish({ onKnock = null }) {
               <stop offset="0%" stopColor="#6f97c4" />
               <stop offset="100%" stopColor="#4f769f" />
             </linearGradient>
+            <linearGradient id="fishShorts" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#6f97c4" />
+              <stop offset="100%" stopColor="#456a99" />
+            </linearGradient>
+            <linearGradient id="skateDeck" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#7b6cf0" />
+              <stop offset="100%" stopColor="#574bc2" />
+            </linearGradient>
           </defs>
 
-          {/* tail fin poking out below the tee */}
-          <path d="M60 132 L40 172 L60 160 L80 172 Z" fill="#e07f4d" opacity="0.92" />
+          {/* skateboard — deck is wider than the body so it clearly reads as a board */}
+          <rect x="6" y="150" width="108" height="12" rx="6" fill="url(#skateDeck)" />
+          <rect x="6" y="150" width="108" height="4" rx="2" fill="#ffffff" opacity="0.25" />
+          <rect x="27" y="160" width="9" height="7" rx="2" fill="#9aa0b5" />
+          <rect x="84" y="160" width="9" height="7" rx="2" fill="#9aa0b5" />
+          <circle cx="31" cy="171" r="8" fill="#f4e9d0" stroke="#cbb48f" strokeWidth="2.5" />
+          <circle cx="90" cy="171" r="8" fill="#f4e9d0" stroke="#cbb48f" strokeWidth="2.5" />
+          <circle cx="31" cy="171" r="2.6" fill="#9a8a66" />
+          <circle cx="90" cy="171" r="2.6" fill="#9a8a66" />
 
-          {/* little fin-feet */}
-          <ellipse cx="49" cy="142" rx="10" ry="6" fill="#e07f4d" />
-          <ellipse cx="71" cy="142" rx="10" ry="6" fill="#e07f4d" />
+          {/* tail fin tucked behind the lower body */}
+          <path d="M84 110 q16 2 21 19 q-15 -1 -23 -7 Z" fill="#e07f4d" opacity="0.85" />
+
+          {/* fin-feet planted on the deck */}
+          <ellipse cx="49" cy="147" rx="12" ry="7" fill="#e88a55" />
+          <ellipse cx="71" cy="147" rx="12" ry="7" fill="#e88a55" />
 
           {/* body */}
-          <ellipse cx="60" cy="82" rx="33" ry="54" fill="url(#fishBody)" />
-          <ellipse cx="60" cy="98" rx="21" ry="34" fill="#ffd9b8" opacity="0.55" />
+          <ellipse cx="60" cy="72" rx="30" ry="46" fill="url(#fishBody)" />
+          <ellipse cx="60" cy="86" rx="18" ry="27" fill="#ffd9b8" opacity="0.5" />
 
-          {/* side fins (arms) tucked under the sleeves */}
-          <ellipse cx="26" cy="100" rx="11" ry="18" fill="#e88a55" transform="rotate(18 26 100)" />
-          <ellipse cx="94" cy="100" rx="11" ry="18" fill="#e88a55" transform="rotate(-18 94 100)" />
-
-          {/* face */}
-          <g>
-            <circle cx="49" cy="54" r="8.5" fill="#fff8ec" />
-            <circle cx="71" cy="54" r="8.5" fill="#fff8ec" />
-            <circle cx="50.5" cy="55.5" r="4.4" fill="#3a2621" />
-            <circle cx="72.5" cy="55.5" r="4.4" fill="#3a2621" />
-            <circle cx="52" cy="53.6" r="1.5" fill="#fff8ec" />
-            <circle cx="74" cy="53.6" r="1.5" fill="#fff8ec" />
-            <ellipse cx="40" cy="66" rx="5" ry="3.4" fill="#f2a48a" opacity="0.5" />
-            <ellipse cx="80" cy="66" rx="5" ry="3.4" fill="#f2a48a" opacity="0.5" />
-            <path d="M48 68 Q60 78 72 68" stroke="#5a352d" strokeWidth="3" strokeLinecap="round" fill="none" />
-          </g>
-
-          {/* baggy American tee */}
-          <path d="M16 72 h88 a18 18 0 0 1 18 18 v34 a18 18 0 0 1 -18 18 h-88 a18 18 0 0 1 -18 -18 v-34 a18 18 0 0 1 18 -18 Z" fill="url(#fishTee)" />
-          <rect x="6" y="92" width="24" height="42" rx="12" fill="url(#fishTee)" />
-          <rect x="90" y="92" width="24" height="42" rx="12" fill="url(#fishTee)" />
-          <path d="M44 74 Q60 86 76 74" stroke="#d9c3a3" strokeWidth="3" fill="none" opacity="0.7" />
-          <rect x="46" y="104" width="28" height="24" rx="6" fill="#e6d2b4" opacity="0.8" />
-          {/* little star print */}
+          {/* tee torso */}
           <path
-            d="M60 84 l2.4 5.4 5.9 0.5 -4.5 3.9 1.4 5.8 -5.2 -3.1 -5.2 3.1 1.4 -5.8 -4.5 -3.9 5.9 -0.5 Z"
+            d="M41 60 L79 60 L79 114 Q60 120 41 114 Z"
+            fill="url(#fishTee)"
+            stroke="#e0c9a6"
+            strokeWidth="1.6"
+          />
+          {/* short sleeves — clearly bulge out past the shoulders */}
+          <path
+            d="M41 60 Q13 66 13 85 Q13 94 22 94 Q31 94 42 82 Z"
+            fill="url(#fishTee)"
+            stroke="#e0c9a6"
+            strokeWidth="1.6"
+          />
+          <path
+            d="M79 60 Q107 66 107 85 Q107 94 98 94 Q89 94 78 82 Z"
+            fill="url(#fishTee)"
+            stroke="#e0c9a6"
+            strokeWidth="1.6"
+          />
+          {/* crew-neck collar */}
+          <path d="M48 60 Q60 71 72 60" stroke="#d9c3a3" strokeWidth="3.5" fill="none" strokeLinecap="round" />
+          {/* hem line */}
+          <path d="M42 111 Q60 117 78 111" stroke="#e0c9a6" strokeWidth="2" fill="none" opacity="0.7" />
+          {/* little star print on the chest */}
+          <path
+            d="M60 74 l2.4 5.4 5.9 0.5 -4.5 3.9 1.4 5.8 -5.2 -3.1 -5.2 3.1 1.4 -5.8 -4.5 -3.9 5.9 -0.5 Z"
             fill="#e8795f"
             opacity="0.85"
           />
 
+          {/* denim shorts */}
+          <path
+            d="M41 110 L79 110 L77 134 Q60 140 43 134 Z"
+            fill="url(#fishShorts)"
+            stroke="#3c5f8c"
+            strokeWidth="1.4"
+          />
+          {/* waistband */}
+          <rect x="40" y="108" width="40" height="8" rx="3.5" fill="#456a99" />
+          {/* center seam + pocket stitches */}
+          <path d="M60 116 L60 134" stroke="#cdddf0" strokeWidth="1.2" opacity="0.6" />
+          <path d="M48 116 L52 116 M68 116 L72 116" stroke="#cdddf0" strokeWidth="1.2" opacity="0.5" />
+
+          {/* little fin-hands peeking from the sleeve cuffs */}
+          <ellipse cx="15" cy="87" rx="7" ry="5" fill="#e88a55" transform="rotate(62 15 87)" />
+          <ellipse cx="105" cy="87" rx="7" ry="5" fill="#e88a55" transform="rotate(-62 105 87)" />
+
+          {/* face */}
+          <g>
+            <circle cx="49" cy="44" r="8.5" fill="#fff8ec" />
+            <circle cx="71" cy="44" r="8.5" fill="#fff8ec" />
+            <circle cx="50.5" cy="45.5" r="4.4" fill="#3a2621" />
+            <circle cx="72.5" cy="45.5" r="4.4" fill="#3a2621" />
+            <circle cx="52" cy="43.6" r="1.5" fill="#fff8ec" />
+            <circle cx="74" cy="43.6" r="1.5" fill="#fff8ec" />
+            <ellipse cx="40" cy="56" rx="5" ry="3.4" fill="#f2a48a" opacity="0.5" />
+            <ellipse cx="80" cy="56" rx="5" ry="3.4" fill="#f2a48a" opacity="0.5" />
+            <path d="M48 58 Q60 68 72 58" stroke="#5a352d" strokeWidth="3" strokeLinecap="round" fill="none" />
+          </g>
+
           {/* backwards denim cap */}
-          <path d="M36 42 A24 24 0 0 1 84 42 Z" fill="url(#fishCap)" />
-          <rect x="16" y="38" width="18" height="9" rx="4" fill="#4f769f" />
-          <circle cx="60" cy="20" r="3" fill="#3f6286" />
+          <path d="M36 32 A24 24 0 0 1 84 32 Z" fill="url(#fishCap)" />
+          <rect x="16" y="28" width="18" height="9" rx="4" fill="#4f769f" />
+          <circle cx="60" cy="10" r="3" fill="#3f6286" />
         </svg>
       </Figure>
     </PopIn>
