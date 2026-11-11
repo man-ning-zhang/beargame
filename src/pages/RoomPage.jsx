@@ -21,6 +21,33 @@ const slideDown = keyframes`
   to { opacity: 1; transform: translateY(0); }
 `;
 
+const bob = keyframes`
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+`;
+
+const ConnectSplash = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 70vh;
+  color: ${palette.cream};
+  animation: ${fadeUp} 0.4s ease-out both;
+
+  .bear {
+    font-size: 56px;
+    animation: ${bob} 2.4s ease-in-out infinite;
+  }
+
+  .text {
+    font-size: 14px;
+    letter-spacing: 0.05em;
+    opacity: 0.82;
+  }
+`;
+
 const Page = styled.div`
   position: relative;
   z-index: 1;
@@ -277,7 +304,18 @@ export default function RoomPage() {
     lastWinner.current = winner;
   }, [winner, me]);
 
-  if (!room || !me) return null;
+  if (!room || !me) {
+    return (
+      <Page>
+        <ConnectSplash>
+          <span className="bear" aria-hidden="true">
+            🐻
+          </span>
+          <span className="text">{t('room.connecting')}</span>
+        </ConnectSplash>
+      </Page>
+    );
+  }
 
   const chatMessages = (room.chat || []).filter((message) => message.kind === 'chat');
   const unread =
