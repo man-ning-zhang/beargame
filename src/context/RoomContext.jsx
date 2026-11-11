@@ -350,8 +350,20 @@ export function RoomProvider({ children }) {
   const openSocket = useCallback(() => {
     if (typeof window === 'undefined') return null;
     const existing = wsRef.current;
-    if (existing && (existing.readyState === WebSocket.OPEN || existing.readyState === WebSocket.CONNECTING)) {
-      return existing;
+    if (existing && existing.readyState === WebSocket.OPEN) return existing;
+    if (existing && existing.readyState === WebSocket.CONNECTING) {
+      // A handshake that never completes (a cold free-tier instance can hold
+      // the upgrade open) would block every future attempt. Give it a deadline.
+      if (Date.now() - (existing.connectedAt ?? 0) < 8000) return existing;
+      existing.onclose = null;
+      existing.onopen = null;
+      existing.onmessage = null;
+      try {
+        existing.close();
+      } catch {
+        // Already gone.
+      }
+      if (wsRef.current === existing) wsRef.current = null;
     }
 
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
@@ -362,9 +374,33 @@ export function RoomProvider({ children }) {
       scheduleReconnect();
       return null;
     }
+    socket.connectedAt = Date.now();
     wsRef.current = socket;
 
+    let connectTimer = window.setTimeout(() => {
+      if (socket.readyState !== WebSocket.CONNECTING) return;
+      socket.onclose = null;
+      socket.onopen = null;
+      socket.onmessage = null;
+      try {
+        socket.close();
+      } catch {
+        // Already gone.
+      }
+      if (wsRef.current === socket) wsRef.current = null;
+      if (!aliveRef.current) return;
+      setConnected(false);
+      setStatus(inRoomRef.current ? 'reconnecting' : desiredRef.current ? 'joining' : 'connecting');
+      scheduleReconnect();
+    }, 8000);
+
+    const clearConnectTimer = () => {
+      window.clearTimeout(connectTimer);
+      connectTimer = null;
+    };
+
     socket.onopen = () => {
+      clearConnectTimer();
       if (!aliveRef.current) return;
       setConnected(true);
       setStatus(inRoomRef.current ? 'reconnecting' : desiredRef.current ? 'joining' : 'idle');
@@ -385,6 +421,7 @@ export function RoomProvider({ children }) {
     };
 
     socket.onclose = () => {
+      clearConnectTimer();
       if (wsRef.current === socket) wsRef.current = null;
       if (!aliveRef.current) return;
       setConnected(false);
