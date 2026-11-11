@@ -2,6 +2,7 @@ import React, { useId, useMemo } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { palette } from '../theme';
 import { useI18n } from '../context/LanguageContext';
+import { DATE_CATALOG, GESTURES } from '../utils/dateCatalog';
 
 const breathe = keyframes`
   0%, 100% { transform: scale(1) translateY(0); }
@@ -154,21 +155,23 @@ const POSITIONS = [
   { left: '46%', top: '28%', delay: '0.22s' },
 ];
 
+// Every Fishy interaction gets its own confetti over the bear, so the partner
+// sees what the pair is up to even when their own Fishy is not on screen.
+// Generated from the catalog so adding a date never leaves a silent action.
+const FISH_ICONS = Object.fromEntries(
+  [...GESTURES, ...DATE_CATALOG].map((item) => [
+    item.id,
+    [item.icon, '✨', item.prop ?? '💗', item.icon, '💗'],
+  ]),
+);
+
 const REACTION_ICONS = {
   feed: ['🍯', '✨', '🍯', '💛', '✨'],
   play: ['🧶', '✨', '💫', '🧶', '✨'],
   hug: ['💗', '💛', '💗', '✨', '💗'],
   sleep: ['💤', '✨', '💤', '🌙', '✨'],
   pet: ['💛', '✨', '💗', '✨', '💛'],
-  // Fishy gestures and little dates — the bear gets his own confetti too,
-  // so the partner sees the date happening even without the local fish.
-  fishHug: ['🫂', '💗', '✨', '🫂', '💗'],
-  fishKiss: ['😙', '💗', '✨', '💋', '💗'],
-  fishHeart: ['💞', '💗', '✨', '💖', '💞'],
-  cook: ['🍳', '✨', '🧡', '🍳', '✨'],
-  walk: ['🚶', '✨', '🍃', '🚶', '✨'],
-  sunset: ['🌅', '🧡', '✨', '🌅', '💗'],
-  tv: ['📺', '🍿', '✨', '📺', '✨'],
+  ...FISH_ICONS,
 };
 
 export default function Bear({ stats = {}, reaction = null, onPet = null, disabled = false }) {

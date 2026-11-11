@@ -3,6 +3,18 @@ import styled, { css, keyframes } from 'styled-components';
 import { palette } from '../theme';
 import { useI18n } from '../context/LanguageContext';
 import { playSound } from '../utils/sound';
+import {
+  DATE_BY_ID,
+  DEFAULT_ROOM,
+  PEEK_LINES,
+  buildDateMenu,
+  buildGestureMenu,
+  dateProgression,
+  momentLine,
+  periodKey,
+  pickRandom,
+  roomForDate,
+} from '../utils/dateCatalog';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const randomBetween = (min, max) => Math.min(max, Math.max(min, min + Math.random() * (max - min)));
@@ -137,22 +149,35 @@ const HEART_SPOTS = [
   { left: 56, top: 22, delay: 0.28 },
 ];
 
-/* Quick gestures while Fishy hangs out by the door. */
-const GESTURES = [
-  { id: 'fishHug', icon: '🫂' },
-  { id: 'fishKiss', icon: '😙' },
-  { id: 'fishHeart', icon: '💞' },
-];
-
-/* Little dates Fishy and the bear go on together — these move bond. */
-const DATES = [
-  { id: 'cook', icon: '🍳' },
-  { id: 'walk', icon: '🚶' },
-  { id: 'sunset', icon: '🌅' },
-  { id: 'tv', icon: '📺' },
-];
-
+/* A date plays out over three little beats before Fishy rolls home. */
 const DATE_MS = 8000;
+
+const propFloat = keyframes`
+  0% { opacity: 0; transform: translateY(12px) scale(0.72) rotate(-8deg); }
+  22% { opacity: 1; }
+  78% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-64px) scale(1.16) rotate(8deg); }
+`;
+
+const DateProp = styled.div`
+  position: absolute;
+  left: 6%;
+  bottom: 76%;
+  z-index: 8;
+  font-size: 30px;
+  pointer-events: none;
+  filter: drop-shadow(0 6px 10px rgba(20, 12, 20, 0.4));
+  animation: ${propFloat} 2.6s ease-out both;
+`;
+
+const Suggested = styled.span`
+  color: ${palette.amber};
+  font-size: 9.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 148px;
+`;
 
 const Dock = styled.div`
   position: absolute;
@@ -210,6 +235,14 @@ const DockBtn = styled.button`
     padding: 0 3px;
   }
 
+  ${(props) =>
+    props.$suggested &&
+    css`
+      border-color: rgba(241, 185, 79, 0.7);
+      background: rgba(241, 185, 79, 0.2);
+      box-shadow: 0 0 0 2px rgba(241, 185, 79, 0.14);
+    `}
+
   &:hover:not(:disabled) {
     background: rgba(255, 248, 236, 0.18);
     transform: translateY(-1px);
@@ -226,28 +259,80 @@ const DockBtn = styled.button`
   }
 `;
 
-const PEEK_LINES = ['fish.peek1', 'fish.peek2', 'fish.peek3'];
-
-export default function Fish({ onKnock = null, onAction = null, cooldowns = {}, clockOffset = 0, connected = true }) {
+export default function Fish({
+  onKnock = null,
+  onAction = null,
+  cooldowns = {},
+  clockOffset = 0,
+  connected = true,
+  period = 'night',
+  roomId = DEFAULT_ROOM,
+  onRoomChange = null,
+}) {
   const { t } = useI18n();
   const [shown, setShown] = useState(false);
   const [phase, setPhase] = useState('hidden');
   const [peekLine, setPeekLine] = useState(null);
   const [waving, setWaving] = useState(false);
   const [dating, setDating] = useState(null);
+  const [dateLines, setDateLines] = useState(null);
+  const [dateStage, setDateStage] = useState(0);
   const [cheer, setCheer] = useState(null);
   const [hearts, setHearts] = useState(0);
   const [now, setNow] = useState(() => Date.now() + clockOffset);
+  const [visitId, setVisitId] = useState(0);
+  const [gestureMenu, setGestureMenu] = useState(() => buildGestureMenu());
+  const [dateMenu, setDateMenu] = useState(() => buildDateMenu({ period, roomId }));
+  const [idleLine, setIdleLine] = useState(null);
   const waveTimer = useRef(null);
-  const dateTimer = useRef(null);
+  const dateTimers = useRef([]);
   const cheerTimer = useRef(null);
   const datingRef = useRef(null);
+  const periodRef = useRef(period);
+
+  useEffect(() => {
+    periodRef.current = period;
+  }, [period]);
 
   useEffect(() => {
     setNow(Date.now() + clockOffset);
     const timer = window.setInterval(() => setNow(Date.now() + clockOffset), 500);
     return () => window.clearInterval(timer);
   }, [clockOffset]);
+
+  // Every visit reshuffles the dock. The hour and the room weight the draw,
+  // and actions still on cooldown are held back when there is a choice.
+  useEffect(() => {
+    if (!visitId) return;
+    const ready = (id) => (cooldowns[id] ?? 0) <= Date.now() + clockOffset;
+    setGestureMenu(buildGestureMenu());
+    setDateMenu(buildDateMenu({ period, roomId, ready }));
+    // Cooldowns are read once per visit on purpose, not on every state push.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visitId, period, roomId]);
+
+  const dockVisible = shown && phase === 'idle' && !dating && connected;
+
+  // While Fishy hangs around he occasionally murmurs something about the hour.
+  useEffect(() => {
+    if (!dockVisible) return undefined;
+    let appear;
+    let clear;
+    const schedule = () => {
+      appear = window.setTimeout(() => {
+        setIdleLine(momentLine(periodRef.current));
+        clear = window.setTimeout(() => {
+          setIdleLine(null);
+          schedule();
+        }, 3600);
+      }, randomBetween(9000, 16000));
+    };
+    schedule();
+    return () => {
+      window.clearTimeout(appear);
+      window.clearTimeout(clear);
+    };
+  }, [dockVisible, visitId]);
 
   useEffect(() => {
     let alive = true;
@@ -271,13 +356,14 @@ export default function Fish({ onKnock = null, onAction = null, cooldowns = {}, 
         }
 
         setPhase('peek');
-        setPeekLine(PEEK_LINES[Math.floor(Math.random() * PEEK_LINES.length)]);
+        setPeekLine(Math.random() < 0.62 ? momentLine(periodRef.current) : pickRandom(PEEK_LINES));
         await sleep(2600);
         if (!alive) return;
 
         // Fishy stays for a while so the two of you can play with him.
         setPeekLine(null);
         setPhase('idle');
+        setVisitId((count) => count + 1);
         await sleep(randomBetween(40000, 70000));
         if (!alive) return;
 
@@ -311,7 +397,7 @@ export default function Fish({ onKnock = null, onAction = null, cooldowns = {}, 
   useEffect(
     () => () => {
       clearTimeout(waveTimer.current);
-      clearTimeout(dateTimer.current);
+      dateTimers.current.forEach(clearTimeout);
       clearTimeout(cheerTimer.current);
     },
     [],
@@ -340,16 +426,27 @@ export default function Fish({ onKnock = null, onAction = null, cooldowns = {}, 
     if (!shown || dating || !connected) return;
     if (cooldownSeconds(item.id) > 0) return;
 
-    if (DATES.some((entry) => entry.id === item.id)) {
+    if (DATE_BY_ID[item.id]) {
+      // A date has three beats, and the pair heads to the room it belongs in.
       setDating(item.id);
       datingRef.current = item.id;
+      setDateLines(dateProgression(item.id));
+      setDateStage(0);
+      setIdleLine(null);
       burstHearts();
       playSound('play');
-      clearTimeout(dateTimer.current);
-      dateTimer.current = setTimeout(() => {
-        setDating(null);
-        datingRef.current = null;
-      }, DATE_MS);
+      dateTimers.current.forEach(clearTimeout);
+      dateTimers.current = [
+        window.setTimeout(() => setDateStage(1), 3000),
+        window.setTimeout(() => setDateStage(2), 5800),
+        window.setTimeout(() => {
+          setDating(null);
+          datingRef.current = null;
+          setDateLines(null);
+        }, DATE_MS),
+      ];
+      const target = roomForDate(item.id, roomId);
+      if (target !== roomId && onRoomChange) onRoomChange(target);
     } else {
       setCheer(item.id);
       burstHearts();
@@ -362,8 +459,30 @@ export default function Fish({ onKnock = null, onAction = null, cooldowns = {}, 
     onAction && onAction(item.id);
   };
 
-  const dockVisible = shown && phase === 'idle' && !dating && connected;
-  const line = dating ? `fish.dateLine.${dating}` : cheer ? `fish.gestureLine.${cheer}` : peekLine;
+  const line = dating
+    ? dateLines?.[dateStage] ?? `fish.dateLine.${dating}`
+    : cheer
+      ? `fish.gestureLine.${cheer}`
+      : peekLine ?? (dockVisible ? idleLine : null);
+
+  const dockButton = (item, suggested = false) => {
+    const cooling = cooldownSeconds(item.id);
+    const label = cooling > 0 ? t('care.cooldownTitle', { seconds: cooling }) : t(`fish.${item.id}`);
+    return (
+      <DockBtn
+        key={item.id}
+        type="button"
+        $suggested={suggested}
+        disabled={cooling > 0}
+        title={label}
+        aria-label={suggested ? `${t('fish.suggested')} ${label}` : label}
+        onClick={() => handleAction(item)}
+      >
+        <span aria-hidden="true">{item.icon}</span>
+        {cooling > 0 && <em>{cooling}</em>}
+      </DockBtn>
+    );
+  };
 
   return (
     <PopIn
@@ -377,47 +496,31 @@ export default function Fish({ onKnock = null, onAction = null, cooldowns = {}, 
       {dockVisible && (
         <Dock onClick={(event) => event.stopPropagation()}>
           <DockRow>
+            <DockLabel>{t(periodKey(period))}</DockLabel>
+            {dateMenu.suggested && (
+              <Suggested>
+                {t('fish.suggested')} {t(`fish.${dateMenu.suggested}`)}
+              </Suggested>
+            )}
+          </DockRow>
+          <DockRow>
             <DockLabel>{t('fish.gestureLabel')}</DockLabel>
-            {GESTURES.map((item) => {
-              const cooling = cooldownSeconds(item.id);
-              return (
-                <DockBtn
-                  key={item.id}
-                  type="button"
-                  disabled={cooling > 0}
-                  title={cooling > 0 ? t('care.cooldownTitle', { seconds: cooling }) : t(`fish.${item.id}`)}
-                  aria-label={cooling > 0 ? t('care.cooldownTitle', { seconds: cooling }) : t(`fish.${item.id}`)}
-                  onClick={() => handleAction(item)}
-                >
-                  <span aria-hidden="true">{item.icon}</span>
-                  {cooling > 0 && <em>{cooling}</em>}
-                </DockBtn>
-              );
-            })}
+            {gestureMenu.map((item) => dockButton(item))}
           </DockRow>
           <DockRow>
             <DockLabel>{t('fish.dateLabel')}</DockLabel>
-            {DATES.map((item) => {
-              const cooling = cooldownSeconds(item.id);
-              return (
-                <DockBtn
-                  key={item.id}
-                  type="button"
-                  disabled={cooling > 0}
-                  title={cooling > 0 ? t('care.cooldownTitle', { seconds: cooling }) : t(`fish.${item.id}`)}
-                  aria-label={cooling > 0 ? t('care.cooldownTitle', { seconds: cooling }) : t(`fish.${item.id}`)}
-                  onClick={() => handleAction(item)}
-                >
-                  <span aria-hidden="true">{item.icon}</span>
-                  {cooling > 0 && <em>{cooling}</em>}
-                </DockBtn>
-              );
-            })}
+            {dateMenu.items.map((item) => dockButton(item, item.id === dateMenu.suggested))}
           </DockRow>
         </Dock>
       )}
 
-      {line && <Bubble>{t(line)}</Bubble>}
+      {dating && (
+        <DateProp key={`${dating}-${dateStage}`} aria-hidden="true">
+          {DATE_BY_ID[dating]?.prop ?? '💗'}
+        </DateProp>
+      )}
+
+      {line && <Bubble key={line}>{t(line)}</Bubble>}
       {waving && <Wave aria-hidden="true">👋</Wave>}
       {hearts > 0 && (
         <Hearts key={hearts} aria-hidden="true">
@@ -430,7 +533,7 @@ export default function Fish({ onKnock = null, onAction = null, cooldowns = {}, 
                 animationDelay: `${spot.delay}s`,
               }}
             >
-              💗
+              {dating && index % 2 === 0 ? DATE_BY_ID[dating]?.prop ?? '💗' : '💗'}
             </span>
           ))}
         </Hearts>

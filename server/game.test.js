@@ -21,6 +21,19 @@ import {
   tickRoom,
   vacateSeat,
 } from './game.js';
+import {
+  DATE_BEATS,
+  DATE_CATALOG,
+  DATE_ENDS,
+  GESTURES,
+  MOMENT_LINES,
+  PERIODS,
+  ROOMS,
+  buildDateMenu,
+  dateProgression,
+  roomForDate,
+} from '../src/utils/dateCatalog.js';
+import { messages } from '../src/i18n.js';
 
 const T0 = 1_700_000_000_000;
 const HOST_TOKEN = 'host-token-1234';
@@ -411,4 +424,71 @@ test('parses mobile, hash and path style shares', () => {
   assert.equal(parseMusicLink('https://music.163.com/#/playlist?id=789').kind, 'playlist');
   assert.equal(parseMusicLink('https://music.163.com/album/321').id, '321');
   assert.equal(parseMusicLink('https://y.music.163.com/m/song?id=456').id, '456');
+});
+
+test('every Fishy interaction is a real server action with two translations', () => {
+  const langs = ['zh', 'en'];
+  for (const item of [...GESTURES, ...DATE_CATALOG]) {
+    assert.ok(ACTIONS[item.id], `server is missing ACTIONS.${item.id}`);
+    for (const lang of langs) {
+      const dict = messages[lang];
+      assert.ok(dict[`fish.${item.id}`], `${lang} missing fish.${item.id}`);
+      assert.ok(dict[`action.${item.id}.verb`], `${lang} missing action.${item.id}.verb`);
+      if (DATE_CATALOG.includes(item)) {
+        assert.ok(dict[`fish.dateLine.${item.id}`], `${lang} missing fish.dateLine.${item.id}`);
+      } else {
+        assert.ok(dict[`fish.gestureLine.${item.id}`], `${lang} missing fish.gestureLine.${item.id}`);
+      }
+    }
+  }
+});
+
+test('rooms, periods and random date lines all have copy in both languages', () => {
+  const keys = [];
+  for (const room of ROOMS) {
+    keys.push(room.labelKey, `house.tip.${room.id}`);
+  }
+  for (const period of PERIODS) {
+    keys.push(`house.period.${period}`, ...MOMENT_LINES[period]);
+  }
+  keys.push(...DATE_BEATS, ...DATE_ENDS, 'house.title', 'fish.suggested');
+  for (const lang of ['zh', 'en']) {
+    for (const key of keys) {
+      assert.ok(messages[lang][key], `${lang} missing ${key}`);
+    }
+  }
+});
+
+test('each hour and room offers four different dates that belong to that hour', () => {
+  for (const period of PERIODS) {
+    for (const room of ROOMS) {
+      const menu = buildDateMenu({ period, roomId: room.id });
+      assert.equal(menu.items.length, 4, `${period}/${room.id} should offer four dates`);
+      assert.equal(new Set(menu.items.map((item) => item.id)).size, 4);
+      for (const item of menu.items) {
+        assert.ok(item.periods.includes(period), `${item.id} does not belong to ${period}`);
+      }
+      assert.ok(menu.suggested, `${period}/${room.id} should suggest something`);
+    }
+  }
+});
+
+test('a date plays three beats and stays in the room when the room fits', () => {
+  const beats = dateProgression('cook');
+  assert.equal(beats.length, 3);
+  assert.equal(beats[0], 'fish.dateLine.cook');
+  assert.equal(roomForDate('cook', 'kitchen'), 'kitchen');
+  assert.equal(roomForDate('cook', 'rooftop'), 'kitchen');
+  assert.equal(roomForDate('sunrise', 'garden'), 'garden');
+});
+
+test('every new date action grows bond and respects its own cooldown', () => {
+  for (const date of DATE_CATALOG) {
+    const { room } = roomWithPair();
+    const first = performAction(room, 'host', date.id, T0 + 1000);
+    assert.equal(first.ok, true, `${date.id} should be performable`);
+    assert.ok(ACTIONS[date.id].effects.bond > 0, `${date.id} should grow bond`);
+    const again = performAction(room, 'host', date.id, T0 + 2000);
+    assert.equal(again.error, 'cooldown', `${date.id} should have a cooldown`);
+  }
 });

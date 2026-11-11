@@ -54,7 +54,6 @@ export default class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, info) {
     // Keep a trace in the console; the boundary keeps the dark screen away.
-    // eslint-disable-next-line no-console
     console.error('Caught render error:', error, info);
   }
 

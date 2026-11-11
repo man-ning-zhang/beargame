@@ -52,7 +52,8 @@ export const ACTIONS = {
     effects: { mood: 4, bond: 1 },
   },
   // Fishy (the bear's boyfriend) interactions. Quick gestures with a small
-  // bond bump, triggered from the dock while Fishy is visiting.
+  // bond bump, triggered from the dock while Fishy is visiting. Three of
+  // these five show up per visit, picked at random on the client.
   fishHug: {
     cooldown: 20_000,
     effects: { mood: 6, bond: 3 },
@@ -65,8 +66,17 @@ export const ACTIONS = {
     cooldown: 15_000,
     effects: { mood: 5, bond: 2 },
   },
+  fishNuzzle: {
+    cooldown: 18_000,
+    effects: { mood: 6, bond: 3 },
+  },
+  fishPinky: {
+    cooldown: 22_000,
+    effects: { mood: 5, bond: 3 },
+  },
   // Little dates Fishy and the bear go on together. Longer cooldowns, bigger
   // bond rewards — doing things together is how the pair grows closer.
+  // Which dates appear depends on the hour and on which room they are in.
   cook: {
     cooldown: 180_000,
     effects: { fullness: 14, mood: 10, bond: 8 },
@@ -82,6 +92,80 @@ export const ACTIONS = {
   tv: {
     cooldown: 180_000,
     effects: { mood: 9, energy: 4, bond: 6 },
+  },
+  // kitchen
+  breakfast: {
+    cooldown: 200_000,
+    effects: { fullness: 18, mood: 9, bond: 7 },
+  },
+  lunch: {
+    cooldown: 210_000,
+    effects: { fullness: 20, mood: 9, bond: 7 },
+  },
+  supper: {
+    cooldown: 210_000,
+    effects: { fullness: 16, mood: 9, bond: 7 },
+  },
+  coffee: {
+    cooldown: 180_000,
+    effects: { mood: 9, energy: 9, bond: 6 },
+  },
+  tea: {
+    cooldown: 180_000,
+    effects: { fullness: 6, mood: 10, bond: 7 },
+  },
+  // bathroom
+  bubble: {
+    cooldown: 240_000,
+    effects: { mood: 12, energy: 8, bond: 8 },
+  },
+  brush: {
+    cooldown: 180_000,
+    effects: { mood: 6, bond: 5 },
+  },
+  // garden
+  plants: {
+    cooldown: 180_000,
+    effects: { mood: 8, bond: 6 },
+  },
+  picnic: {
+    cooldown: 270_000,
+    effects: { fullness: 16, mood: 13, energy: -4, bond: 9 },
+  },
+  bike: {
+    cooldown: 260_000,
+    effects: { mood: 13, energy: -10, bond: 8 },
+  },
+  sunrise: {
+    cooldown: 280_000,
+    effects: { mood: 14, energy: 3, bond: 9 },
+  },
+  // bedroom
+  nap: {
+    cooldown: 240_000,
+    effects: { mood: 6, energy: 22, bond: 6 },
+  },
+  story: {
+    cooldown: 210_000,
+    effects: { mood: 10, energy: 4, bond: 8 },
+  },
+  movie: {
+    cooldown: 240_000,
+    effects: { mood: 11, energy: 4, bond: 8 },
+  },
+  // rooftop
+  stargaze: {
+    cooldown: 300_000,
+    effects: { mood: 15, bond: 10 },
+  },
+  // rare surprises
+  flowers: {
+    cooldown: 360_000,
+    effects: { mood: 18, bond: 12 },
+  },
+  photo: {
+    cooldown: 300_000,
+    effects: { mood: 15, bond: 11 },
   },
 };
 

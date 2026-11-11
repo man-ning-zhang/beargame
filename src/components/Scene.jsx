@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import styled, { keyframes } from 'styled-components';
 import Bear from './Bear';
 import Fish from './Fish';
+import { RoomDecor, RoomSwitcher } from './RoomScenes';
+import { DEFAULT_ROOM } from '../utils/dateCatalog';
 import { breakpoints, palette, shadows } from '../theme';
 import { useI18n } from '../context/LanguageContext';
 import { useTimeOfDay } from '../utils/timeOfDay';
@@ -628,6 +630,7 @@ export default function Scene({ room, me, bubble, reaction, onPet, connected, on
   const nightSky = period === 'night';
   const sun = SUN_POS[period];
 
+  const [roomId, setRoomId] = useState(DEFAULT_ROOM);
   const [knock, setKnock] = useState(false);
   const knockTimer = useRef(null);
   const handleKnock = useCallback(() => {
@@ -638,123 +641,136 @@ export default function Scene({ room, me, bubble, reaction, onPet, connected, on
   useEffect(() => () => clearTimeout(knockTimer.current), []);
 
   return (
-    <SceneCard $period={period}>
-      <WallGlow />
+    <>
+      <SceneCard $period={period}>
+        <WallGlow />
 
-      <Window>
-        <Sky $period={period}>
-          {nightSky ? <Moon /> : sun ? <Sun $top={sun.top} $right={sun.right} /> : null}
-          {nightSky &&
-            STARS.map((star, index) => (
-              <Star
-                key={index}
-                $size={star.size}
-                $dur={star.dur}
-                $delay={star.delay}
-                style={{ left: star.left, top: star.top }}
+        {roomId === 'living' ? (
+          <>
+            <Window>
+              <Sky $period={period}>
+                {nightSky ? <Moon /> : sun ? <Sun $top={sun.top} $right={sun.right} /> : null}
+                {nightSky &&
+                  STARS.map((star, index) => (
+                    <Star
+                      key={index}
+                      $size={star.size}
+                      $dur={star.dur}
+                      $delay={star.delay}
+                      style={{ left: star.left, top: star.top }}
+                    />
+                  ))}
+                <Hills>
+                  <HillBack $period={period} />
+                  <HillFront $period={period} />
+                </Hills>
+              </Sky>
+              <WindowBarV />
+              <WindowBarH />
+            </Window>
+            <Sill />
+
+            <Lights viewBox="0 0 600 80" preserveAspectRatio="none" aria-hidden="true">
+              <path
+                d="M0 18 Q 80 58 160 32 T 320 44 T 480 30 T 600 38"
+                fill="none"
+                stroke="rgba(255, 241, 214, 0.36)"
+                strokeWidth="1.4"
               />
-            ))}
-          <Hills>
-            <HillBack $period={period} />
-            <HillFront $period={period} />
-          </Hills>
-        </Sky>
-        <WindowBarV />
-        <WindowBarH />
-      </Window>
-      <Sill />
+              {BULBS.map((bulb, index) => (
+                <g key={index}>
+                  <Bulb
+                    cx={bulb.x}
+                    cy={bulb.y}
+                    r="9"
+                    fill="rgba(241, 185, 79, 0.12)"
+                    $dur={3 + (index % 3)}
+                    $delay={bulb.delay}
+                  />
+                  <circle cx={bulb.x} cy={bulb.y} r="3.2" fill="#ffe2a6" />
+                </g>
+              ))}
+            </Lights>
 
-      <Lights viewBox="0 0 600 80" preserveAspectRatio="none" aria-hidden="true">
-        <path
-          d="M0 18 Q 80 58 160 32 T 320 44 T 480 30 T 600 38"
-          fill="none"
-          stroke="rgba(255, 241, 214, 0.36)"
-          strokeWidth="1.4"
+            <Floor />
+            <Rug />
+
+            <Plant viewBox="0 0 100 140" aria-hidden="true">
+              <ellipse cx="50" cy="132" rx="27" ry="5" fill="rgba(0,0,0,0.22)" />
+              <path d="M34 92 h32 l-5 38 q-11 6 -22 0 Z" fill="#b7745f" />
+              <path d="M34 92 h32 l-2 9 H36 Z" fill="#cf8b72" />
+              <path d="M50 92 V58" stroke="#5e7a5a" strokeWidth="3" strokeLinecap="round" />
+              <path d="M50 73 Q 28 68 24 50 Q 44 48 50 66" fill="#698b64" />
+              <path d="M50 63 Q 71 55 77 38 Q 56 39 50 56" fill="#7c9e73" />
+              <path d="M50 83 Q 33 80 28 68 Q 44 67 50 78" fill="#5d7c59" />
+              <path d="M50 54 Q 52 36 66 28 Q 70 46 54 54" fill="#8cac80" />
+            </Plant>
+
+            <Books aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </Books>
+
+            <Door className={knock ? 'is-knocking' : ''} aria-hidden="true">
+              <Knob />
+            </Door>
+          </>
+        ) : (
+          <RoomDecor roomId={roomId} period={period} knock={knock} />
+        )}
+
+        <BondPill>
+          <span aria-hidden="true">❤️</span>
+          <strong>{t(`bond.level.${room.bond.level}`)}</strong>
+          <span className="level">{t('bond.short', { level: room.bond.level })}</span>
+        </BondPill>
+
+        <Together $together={room.together}>
+          {room.players.guest && room.players.host
+            ? room.together
+              ? t('scene.together')
+              : t('scene.waitingBack')
+            : t('scene.waitingIn')}
+        </Together>
+
+        {bubble && (
+          <Bubble key={bubble.id}>
+            <span className="bubble-name">
+              {bubbleIsMine ? t('scene.bubbleYou') : bubble.name}
+            </span>
+            {bubble.emote ? (
+              <span className="bubble-emote" aria-hidden="true">
+                {bubble.emote}
+              </span>
+            ) : (
+              <span className="bubble-text">
+                {bubble.text || (bubble.music ? t('scene.sharedSong') : '')}
+              </span>
+            )}
+          </Bubble>
+        )}
+
+        <BearSpot>
+          <Bear stats={room.stats} reaction={reaction} onPet={onPet} disabled={!connected} />
+        </BearSpot>
+
+        <Fish
+          onKnock={handleKnock}
+          onAction={onFishAction}
+          cooldowns={room.cooldowns}
+          clockOffset={clockOffset}
+          connected={connected}
+          period={period}
+          roomId={roomId}
+          onRoomChange={setRoomId}
         />
-        {BULBS.map((bulb, index) => (
-          <g key={index}>
-            <Bulb
-              cx={bulb.x}
-              cy={bulb.y}
-              r="9"
-              fill="rgba(241, 185, 79, 0.12)"
-              $dur={3 + (index % 3)}
-              $delay={bulb.delay}
-            />
-            <circle cx={bulb.x} cy={bulb.y} r="3.2" fill="#ffe2a6" />
-          </g>
-        ))}
-      </Lights>
 
-      <Floor />
-      <Rug />
+        <MoodNote $color={mood.color}>{t(mood.key)}</MoodNote>
+        <Hint>{t('scene.hint')}</Hint>
+      </SceneCard>
 
-      <Plant viewBox="0 0 100 140" aria-hidden="true">
-        <ellipse cx="50" cy="132" rx="27" ry="5" fill="rgba(0,0,0,0.22)" />
-        <path d="M34 92 h32 l-5 38 q-11 6 -22 0 Z" fill="#b7745f" />
-        <path d="M34 92 h32 l-2 9 H36 Z" fill="#cf8b72" />
-        <path d="M50 92 V58" stroke="#5e7a5a" strokeWidth="3" strokeLinecap="round" />
-        <path d="M50 73 Q 28 68 24 50 Q 44 48 50 66" fill="#698b64" />
-        <path d="M50 63 Q 71 55 77 38 Q 56 39 50 56" fill="#7c9e73" />
-        <path d="M50 83 Q 33 80 28 68 Q 44 67 50 78" fill="#5d7c59" />
-        <path d="M50 54 Q 52 36 66 28 Q 70 46 54 54" fill="#8cac80" />
-      </Plant>
-
-      <Books aria-hidden="true">
-        <span />
-        <span />
-        <span />
-      </Books>
-
-      <Door className={knock ? 'is-knocking' : ''} aria-hidden="true">
-        <Knob />
-      </Door>
-
-      <BondPill>
-        <span aria-hidden="true">❤️</span>
-        <strong>{t(`bond.level.${room.bond.level}`)}</strong>
-        <span className="level">{t('bond.short', { level: room.bond.level })}</span>
-      </BondPill>
-
-      <Together $together={room.together}>
-        {room.players.guest && room.players.host
-          ? room.together
-            ? t('scene.together')
-            : t('scene.waitingBack')
-          : t('scene.waitingIn')}
-      </Together>
-
-      {bubble && (
-        <Bubble key={bubble.id}>
-          <span className="bubble-name">
-            {bubbleIsMine ? t('scene.bubbleYou') : bubble.name}
-          </span>
-          {bubble.emote ? (
-            <span className="bubble-emote" aria-hidden="true">
-              {bubble.emote}
-            </span>
-          ) : (
-            <span className="bubble-text">
-              {bubble.text || (bubble.music ? t('scene.sharedSong') : '')}
-            </span>
-          )}
-        </Bubble>
-      )}
-
-      <BearSpot>
-        <Bear stats={room.stats} reaction={reaction} onPet={onPet} disabled={!connected} />
-      </BearSpot>
-
-      <Fish
-        onKnock={handleKnock}
-        onAction={onFishAction}
-        cooldowns={room.cooldowns}
-        clockOffset={clockOffset}
-        connected={connected}
-      />
-
-      <MoodNote $color={mood.color}>{t(mood.key)}</MoodNote>
-      <Hint>{t('scene.hint')}</Hint>
-    </SceneCard>
+      <RoomSwitcher current={roomId} period={period} onChange={setRoomId} />
+    </>
   );
 }
