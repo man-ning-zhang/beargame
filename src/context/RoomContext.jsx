@@ -163,6 +163,7 @@ export function RoomProvider({ children }) {
   const aliveRef = useRef(true);
   const openSocketRef = useRef(null);
   const lastMessageAtRef = useRef(Date.now());
+  const lastPongAtRef = useRef(Date.now());
 
   const showToast = useCallback((key, params = null) => {
     if (!key) return;
@@ -278,6 +279,10 @@ export function RoomProvider({ children }) {
           setRoom(incoming);
           setStatus('room');
           setClockOffset(incoming.serverTime - Date.now());
+          break;
+        }
+        case 'pong': {
+          lastPongAtRef.current = Date.now();
           break;
         }
         case 'left': {
@@ -413,6 +418,7 @@ export function RoomProvider({ children }) {
     socket.onopen = () => {
       clearConnectTimer();
       if (!aliveRef.current) return;
+      lastPongAtRef.current = Date.now();
       setConnected(true);
       setStatus(inRoomRef.current ? 'reconnecting' : desiredRef.current ? 'joining' : 'idle');
       reconnectAttemptRef.current = 0;
@@ -481,6 +487,30 @@ export function RoomProvider({ children }) {
       document.removeEventListener('visibilitychange', checkConnection);
       window.removeEventListener('focus', checkConnection);
     };
+  }, []);
+
+  // Application-level heartbeat. A busy proxy can leave the socket "OPEN" while
+  // the upstream half is gone: broadcasts still arrive, so a message-gap
+  // watchdog never fires, but every action we send is silently dropped — which
+  // looks exactly like "the button does nothing". A ping that must be answered
+  // is the only way to prove the uplink still exists. The server replies with
+  // { type: 'pong' }; three missed replies (30s) means the link is dead.
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const socket = wsRef.current;
+      if (!socket || socket.readyState !== WebSocket.OPEN) return;
+      if (!inRoomRef.current) return;
+      if (Date.now() - lastPongAtRef.current > 30000) {
+        socket.close();
+        return;
+      }
+      try {
+        socket.send(JSON.stringify({ type: 'ping' }));
+      } catch {
+        // The close handler drives the reconnect.
+      }
+    }, 10000);
+    return () => window.clearInterval(timer);
   }, []);
 
   useEffect(() => {
