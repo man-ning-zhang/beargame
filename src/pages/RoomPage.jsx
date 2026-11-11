@@ -342,6 +342,8 @@ export default function RoomPage() {
             bubble={bubble}
             reaction={reaction}
             onPet={() => doAction('pet')}
+            onFishAction={doAction}
+            clockOffset={clockOffset}
             connected={connected}
           />
           <CarePanel

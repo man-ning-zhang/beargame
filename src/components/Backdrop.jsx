@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { palette } from '../theme';
+import { useTimeOfDay } from '../utils/timeOfDay';
 
 const twinkle = keyframes`
   0%, 100% { opacity: 0.18; transform: scale(0.85); }
@@ -12,6 +13,16 @@ const drift = keyframes`
   50% { transform: translate3d(2%, -2%, 0) scale(1.05); }
 `;
 
+/* Subtle hour tint for the app backdrop: same hues as the window sky, kept
+   dark so the cream UI text stays readable day and night. */
+const TINT = {
+  dawn: { a: 'rgba(186, 110, 150, 0.30)', b: 'rgba(242, 180, 126, 0.20)' },
+  morning: { a: 'rgba(110, 150, 195, 0.26)', b: 'rgba(240, 214, 150, 0.18)' },
+  noon: { a: 'rgba(100, 150, 205, 0.26)', b: 'rgba(245, 240, 190, 0.16)' },
+  afternoon: { a: 'rgba(150, 110, 150, 0.28)', b: 'rgba(240, 170, 100, 0.20)' },
+  night: { a: 'rgba(123, 91, 140, 0.28)', b: 'rgba(232, 121, 95, 0.16)' },
+};
+
 const Root = styled.div`
   position: fixed;
   inset: 0;
@@ -19,9 +30,10 @@ const Root = styled.div`
   overflow: hidden;
   pointer-events: none;
   background:
-    radial-gradient(1200px 800px at 12% -10%, rgba(123, 91, 140, 0.28), transparent 60%),
-    radial-gradient(1000px 700px at 95% 5%, rgba(232, 121, 95, 0.16), transparent 60%),
+    radial-gradient(1200px 800px at 12% -10%, ${(props) => TINT[props.$period]?.a ?? TINT.night.a}, transparent 60%),
+    radial-gradient(1000px 700px at 95% 5%, ${(props) => TINT[props.$period]?.b ?? TINT.night.b}, transparent 60%),
     linear-gradient(180deg, #10111d 0%, ${palette.night} 45%, #0c0d17 100%);
+  transition: background 1.5s ease;
 `;
 
 const Aurora = styled.div`
@@ -39,13 +51,13 @@ const Aurora = styled.div`
 const AuroraOne = styled(Aurora)`
   top: -22%;
   left: -12%;
-  background: radial-gradient(circle, rgba(123, 91, 140, 0.55), transparent 66%);
+  background: radial-gradient(circle, ${(props) => TINT[props.$period]?.a ?? TINT.night.a}, transparent 66%);
 `;
 
 const AuroraTwo = styled(Aurora)`
   right: -18%;
   bottom: -30%;
-  background: radial-gradient(circle, rgba(232, 121, 95, 0.3), transparent 68%);
+  background: radial-gradient(circle, ${(props) => TINT[props.$period]?.b ?? TINT.night.b}, transparent 68%);
   animation-delay: -9s;
 `;
 
@@ -78,6 +90,8 @@ const Vignette = styled.div`
 `;
 
 export default function Backdrop() {
+  const period = useTimeOfDay();
+  const night = period === 'night';
   const stars = useMemo(
     () =>
       Array.from({ length: 58 }, (_, index) => ({
@@ -92,19 +106,20 @@ export default function Backdrop() {
   );
 
   return (
-    <Root aria-hidden="true">
-      <AuroraOne />
-      <AuroraTwo />
-      <MoonGlow />
-      {stars.map((star) => (
-        <Star
-          key={star.id}
-          $size={star.size}
-          $duration={star.duration}
-          $delay={star.delay}
-          style={{ left: `${star.left}%`, top: `${star.top}%` }}
-        />
-      ))}
+    <Root $period={period} aria-hidden="true">
+      <AuroraOne $period={period} />
+      <AuroraTwo $period={period} />
+      {night && <MoonGlow />}
+      {night &&
+        stars.map((star) => (
+          <Star
+            key={star.id}
+            $size={star.size}
+            $duration={star.duration}
+            $delay={star.delay}
+            style={{ left: `${star.left}%`, top: `${star.top}%` }}
+          />
+        ))}
       <Vignette />
     </Root>
   );

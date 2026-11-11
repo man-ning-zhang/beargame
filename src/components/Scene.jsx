@@ -4,6 +4,7 @@ import Bear from './Bear';
 import Fish from './Fish';
 import { breakpoints, palette, shadows } from '../theme';
 import { useI18n } from '../context/LanguageContext';
+import { useTimeOfDay } from '../utils/timeOfDay';
 
 const twinkle = keyframes`
   0%, 100% { opacity: 0.25; }
@@ -20,6 +21,40 @@ const bulbGlow = keyframes`
   50% { opacity: 1; }
 `;
 
+/* Daylight palettes. The window shows what is outside; the cabin walls and
+   the app backdrop take a subtle tint of the same hour. */
+const SKY = {
+  dawn: 'linear-gradient(180deg, #46406e 0%, #8a5f7e 42%, #d98a6a 72%, #f2b47e 100%)',
+  morning: 'linear-gradient(180deg, #7fb4d9 0%, #a8cfe4 50%, #d8d3ae 82%, #ead9b8 100%)',
+  noon: 'linear-gradient(180deg, #5aa7e0 0%, #8ec8ee 55%, #b8ddef 80%, #d5ecf2 100%)',
+  afternoon: 'linear-gradient(180deg, #6f9fd0 0%, #c99a6f 55%, #e8b077 80%, #f0c184 100%)',
+  night: 'linear-gradient(180deg, #131a33 0%, #273054 46%, #7b5a76 74%, #c8816d 100%)',
+};
+
+const SUN_POS = {
+  dawn: { top: '56%', right: '68%' },
+  morning: { top: '22%', right: '70%' },
+  noon: { top: '12%', right: '44%' },
+  afternoon: { top: '30%', right: '18%' },
+  night: null,
+};
+
+const WALL = {
+  dawn: ['#544263', '#453652', '#332a42'],
+  morning: ['#514d6c', '#43405e', '#323049'],
+  noon: ['#4f5573', '#414966', '#313850'],
+  afternoon: ['#5a465c', '#493a4f', '#372d3f'],
+  night: ['#4b3a5d', '#3c304d', '#2b2238'],
+};
+
+const HILL_COLORS = {
+  dawn: { back: '#54416a', front: '#3d3050' },
+  morning: { back: '#5f7d8f', front: '#4a6376' },
+  noon: { back: '#5b87a6', front: '#446c8c' },
+  afternoon: { back: '#6d5a74', front: '#514059' },
+  night: { back: '#2c2a47', front: '#202039' },
+};
+
 const SceneCard = styled.section`
   position: relative;
   height: clamp(390px, 45vw, 500px);
@@ -27,7 +62,12 @@ const SceneCard = styled.section`
   overflow: hidden;
   background:
     radial-gradient(120% 90% at 50% 0%, rgba(255, 218, 166, 0.14), transparent 58%),
-    linear-gradient(180deg, #4b3a5d 0%, #3c304d 52%, #2b2238 100%);
+    linear-gradient(
+      180deg,
+      ${(props) => WALL[props.$period]?.[0] ?? WALL.night[0]} 0%,
+      ${(props) => WALL[props.$period]?.[1] ?? WALL.night[1]} 52%,
+      ${(props) => WALL[props.$period]?.[2] ?? WALL.night[2]} 100%
+    );
   box-shadow: ${shadows.card};
   border: 1px solid rgba(255, 248, 236, 0.1);
   isolation: isolate;
@@ -74,9 +114,7 @@ const Window = styled.div`
 const Sky = styled.div`
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(120% 90% at 60% 0%, rgba(255, 210, 148, 0.1), transparent 55%),
-    linear-gradient(180deg, #131a33 0%, #273054 46%, #7b5a76 74%, #c8816d 100%);
+  background: ${(props) => SKY[props.$period] ?? SKY.night};
 `;
 
 const Moon = styled.div`
@@ -94,6 +132,24 @@ const Moon = styled.div`
   @media (max-width: ${breakpoints.medium}) {
     width: 44px;
     height: 44px;
+  }
+`;
+
+const Sun = styled.div`
+  position: absolute;
+  top: ${(props) => props.$top};
+  right: ${(props) => props.$right};
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 36% 32%, #fffbe8, #ffe8a8 52%, #ffc978 100%);
+  box-shadow:
+    0 0 30px rgba(255, 224, 150, 0.75),
+    0 0 90px rgba(255, 214, 130, 0.4);
+
+  @media (max-width: ${breakpoints.medium}) {
+    width: 40px;
+    height: 40px;
   }
 `;
 
@@ -123,8 +179,9 @@ const HillBack = styled.div`
   bottom: 8%;
   height: 76%;
   border-radius: 50% 50% 0 0;
-  background: #2c2a47;
+  background: ${(props) => HILL_COLORS[props.$period]?.back ?? HILL_COLORS.night.back};
   opacity: 0.9;
+  transition: background 1.2s ease;
 `;
 
 const HillFront = styled.div`
@@ -134,7 +191,8 @@ const HillFront = styled.div`
   bottom: -8%;
   height: 64%;
   border-radius: 50% 50% 0 0;
-  background: #202039;
+  background: ${(props) => HILL_COLORS[props.$period]?.front ?? HILL_COLORS.night.front};
+  transition: background 1.2s ease;
 `;
 
 const WindowBarV = styled.div`
@@ -562,10 +620,13 @@ function moodCopy(mood) {
   return { key: 'scene.mood.sad', color: '#e8795f' };
 }
 
-export default function Scene({ room, me, bubble, reaction, onPet, connected }) {
+export default function Scene({ room, me, bubble, reaction, onPet, connected, onFishAction, clockOffset = 0 }) {
   const { t } = useI18n();
+  const period = useTimeOfDay();
   const mood = moodCopy(room.stats.mood);
   const bubbleIsMine = bubble?.seat === me;
+  const nightSky = period === 'night';
+  const sun = SUN_POS[period];
 
   const [knock, setKnock] = useState(false);
   const knockTimer = useRef(null);
@@ -577,24 +638,25 @@ export default function Scene({ room, me, bubble, reaction, onPet, connected }) 
   useEffect(() => () => clearTimeout(knockTimer.current), []);
 
   return (
-    <SceneCard>
+    <SceneCard $period={period}>
       <WallGlow />
 
       <Window>
-        <Sky>
-          <Moon />
-          {STARS.map((star, index) => (
-            <Star
-              key={index}
-              $size={star.size}
-              $dur={star.dur}
-              $delay={star.delay}
-              style={{ left: star.left, top: star.top }}
-            />
-          ))}
+        <Sky $period={period}>
+          {nightSky ? <Moon /> : sun ? <Sun $top={sun.top} $right={sun.right} /> : null}
+          {nightSky &&
+            STARS.map((star, index) => (
+              <Star
+                key={index}
+                $size={star.size}
+                $dur={star.dur}
+                $delay={star.delay}
+                style={{ left: star.left, top: star.top }}
+              />
+            ))}
           <Hills>
-            <HillBack />
-            <HillFront />
+            <HillBack $period={period} />
+            <HillFront $period={period} />
           </Hills>
         </Sky>
         <WindowBarV />
@@ -683,7 +745,13 @@ export default function Scene({ room, me, bubble, reaction, onPet, connected }) 
         <Bear stats={room.stats} reaction={reaction} onPet={onPet} disabled={!connected} />
       </BearSpot>
 
-      <Fish onKnock={handleKnock} />
+      <Fish
+        onKnock={handleKnock}
+        onAction={onFishAction}
+        cooldowns={room.cooldowns}
+        clockOffset={clockOffset}
+        connected={connected}
+      />
 
       <MoodNote $color={mood.color}>{t(mood.key)}</MoodNote>
       <Hint>{t('scene.hint')}</Hint>

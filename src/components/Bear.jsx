@@ -160,6 +160,15 @@ const REACTION_ICONS = {
   hug: ['💗', '💛', '💗', '✨', '💗'],
   sleep: ['💤', '✨', '💤', '🌙', '✨'],
   pet: ['💛', '✨', '💗', '✨', '💛'],
+  // Fishy gestures and little dates — the bear gets his own confetti too,
+  // so the partner sees the date happening even without the local fish.
+  fishHug: ['🫂', '💗', '✨', '🫂', '💗'],
+  fishKiss: ['😙', '💗', '✨', '💋', '💗'],
+  fishHeart: ['💞', '💗', '✨', '💖', '💞'],
+  cook: ['🍳', '✨', '🧡', '🍳', '✨'],
+  walk: ['🚶', '✨', '🍃', '🚶', '✨'],
+  sunset: ['🌅', '🧡', '✨', '🌅', '💗'],
+  tv: ['📺', '🍿', '✨', '📺', '✨'],
 };
 
 export default function Bear({ stats = {}, reaction = null, onPet = null, disabled = false }) {

@@ -51,6 +51,38 @@ export const ACTIONS = {
     cooldown: 3_000,
     effects: { mood: 4, bond: 1 },
   },
+  // Fishy (the bear's boyfriend) interactions. Quick gestures with a small
+  // bond bump, triggered from the dock while Fishy is visiting.
+  fishHug: {
+    cooldown: 20_000,
+    effects: { mood: 6, bond: 3 },
+  },
+  fishKiss: {
+    cooldown: 30_000,
+    effects: { mood: 8, bond: 4 },
+  },
+  fishHeart: {
+    cooldown: 15_000,
+    effects: { mood: 5, bond: 2 },
+  },
+  // Little dates Fishy and the bear go on together. Longer cooldowns, bigger
+  // bond rewards — doing things together is how the pair grows closer.
+  cook: {
+    cooldown: 180_000,
+    effects: { fullness: 14, mood: 10, bond: 8 },
+  },
+  walk: {
+    cooldown: 240_000,
+    effects: { fullness: -4, mood: 12, energy: -6, bond: 8 },
+  },
+  sunset: {
+    cooldown: 300_000,
+    effects: { mood: 14, bond: 10 },
+  },
+  tv: {
+    cooldown: 180_000,
+    effects: { mood: 9, energy: 4, bond: 6 },
+  },
 };
 
 export const BOND_LEVELS = [0, 30, 90, 180, 320].map((min) => ({ min }));

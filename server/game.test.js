@@ -113,6 +113,28 @@ test('actions change stats and respect a shared cooldown', () => {
   assert.equal(room.log[0].action, 'feed');
 });
 
+test('fishy dates and gestures warm the bond through the same actions', () => {
+  const { room } = roomWithPair();
+  const beforeBond = room.stats.bond;
+  const beforeFullness = room.stats.fullness;
+
+  const cook = performAction(room, 'host', 'cook', T0 + 100);
+  assert.equal(cook.ok, true);
+  assert.equal(room.stats.bond, beforeBond + ACTIONS.cook.effects.bond);
+  assert.equal(room.stats.fullness, Math.min(100, beforeFullness + ACTIONS.cook.effects.fullness));
+
+  const kiss = performAction(room, 'guest', 'fishKiss', T0 + 150);
+  assert.equal(kiss.ok, true);
+  assert.equal(room.stats.bond, beforeBond + ACTIONS.cook.effects.bond + ACTIONS.fishKiss.effects.bond);
+
+  // Dates share the same cooldown machinery as care actions.
+  const tooSoon = performAction(room, 'guest', 'cook', T0 + 200);
+  assert.equal(tooSoon.error, 'cooldown');
+
+  // Unknown ids are still rejected.
+  assert.equal(performAction(room, 'host', 'nope', T0 + 300).ok, false);
+});
+
 test('stats decay while someone is online and pause while empty', () => {
   const { room } = roomWithPair();
   room.stats = { fullness: 80, mood: 80, energy: 80, bond: 0 };

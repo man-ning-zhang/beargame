@@ -38,14 +38,22 @@ const wave = keyframes`
   80% { transform: rotate(6deg); }
 `;
 
+const floatUp = keyframes`
+  0% { opacity: 0; transform: translateY(0) scale(0.7); }
+  18% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-96px) scale(1.15); }
+`;
+
 const PopIn = styled.div`
   position: absolute;
-  left: 6%;
+  left: ${(props) => (props.$date ? '26%' : '6%')};
   bottom: 1.5%;
   width: clamp(88px, 13%, 134px);
-  z-index: 5;
+  z-index: ${(props) => (props.$date ? 6 : 5)};
   transform: translateX(${(props) => (props.$shown ? '0%' : '-185%')});
-  transition: transform ${(props) => (props.$reduce ? 0.25 : 1.9)}s cubic-bezier(0.22, 0.8, 0.3, 1);
+  transition:
+    transform ${(props) => (props.$reduce ? 0.25 : 1.9)}s cubic-bezier(0.22, 0.8, 0.3, 1),
+    left ${(props) => (props.$reduce ? 0.25 : 1.9)}s cubic-bezier(0.22, 0.8, 0.3, 1);
   pointer-events: ${(props) => (props.$shown ? 'auto' : 'none')};
   filter: drop-shadow(0 12px 14px rgba(20, 12, 20, 0.28));
 `;
@@ -106,15 +114,140 @@ const Wave = styled.div`
   pointer-events: none;
 `;
 
+const Hearts = styled.div`
+  position: absolute;
+  left: 40%;
+  top: 0;
+  z-index: 8;
+  pointer-events: none;
+
+  span {
+    position: absolute;
+    font-size: 16px;
+    opacity: 0;
+    animation: ${floatUp} 1.5s ease-out forwards;
+  }
+`;
+
+const HEART_SPOTS = [
+  { left: 6, top: 30, delay: 0 },
+  { left: 40, top: 12, delay: 0.12 },
+  { left: 70, top: 38, delay: 0.05 },
+  { left: 22, top: 0, delay: 0.2 },
+  { left: 56, top: 22, delay: 0.28 },
+];
+
+/* Quick gestures while Fishy hangs out by the door. */
+const GESTURES = [
+  { id: 'fishHug', icon: '🫂' },
+  { id: 'fishKiss', icon: '😙' },
+  { id: 'fishHeart', icon: '💞' },
+];
+
+/* Little dates Fishy and the bear go on together — these move bond. */
+const DATES = [
+  { id: 'cook', icon: '🍳' },
+  { id: 'walk', icon: '🚶' },
+  { id: 'sunset', icon: '🌅' },
+  { id: 'tv', icon: '📺' },
+];
+
+const DATE_MS = 8000;
+
+const Dock = styled.div`
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  z-index: 9;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 9px 10px;
+  border-radius: 16px;
+  background: rgba(24, 19, 34, 0.72);
+  border: 1px solid rgba(255, 248, 236, 0.14);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 16px 30px -16px rgba(10, 8, 15, 0.65);
+`;
+
+const DockRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 5px;
+`;
+
+const DockLabel = styled.span`
+  color: rgba(255, 248, 236, 0.55);
+  font-size: 9.5px;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  margin-right: 2px;
+`;
+
+const DockBtn = styled.button`
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 248, 236, 0.16);
+  background: rgba(255, 248, 236, 0.08);
+  font-size: 14px;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.15s ease, transform 0.15s ease;
+
+  em {
+    position: absolute;
+    right: -2px;
+    bottom: -3px;
+    font-style: normal;
+    font-size: 8px;
+    color: #ffd9a3;
+    background: rgba(24, 19, 34, 0.9);
+    border-radius: 6px;
+    padding: 0 3px;
+  }
+
+  &:hover:not(:disabled) {
+    background: rgba(255, 248, 236, 0.18);
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(241, 185, 79, 0.6);
+    outline-offset: 2px;
+  }
+`;
+
 const PEEK_LINES = ['fish.peek1', 'fish.peek2', 'fish.peek3'];
 
-export default function Fish({ onKnock = null }) {
+export default function Fish({ onKnock = null, onAction = null, cooldowns = {}, clockOffset = 0, connected = true }) {
   const { t } = useI18n();
   const [shown, setShown] = useState(false);
   const [phase, setPhase] = useState('hidden');
   const [peekLine, setPeekLine] = useState(null);
   const [waving, setWaving] = useState(false);
+  const [dating, setDating] = useState(null);
+  const [cheer, setCheer] = useState(null);
+  const [hearts, setHearts] = useState(0);
+  const [now, setNow] = useState(() => Date.now() + clockOffset);
   const waveTimer = useRef(null);
+  const dateTimer = useRef(null);
+  const cheerTimer = useRef(null);
+  const datingRef = useRef(null);
+
+  useEffect(() => {
+    setNow(Date.now() + clockOffset);
+    const timer = window.setInterval(() => setNow(Date.now() + clockOffset), 500);
+    return () => window.clearInterval(timer);
+  }, [clockOffset]);
 
   useEffect(() => {
     let alive = true;
@@ -142,12 +275,25 @@ export default function Fish({ onKnock = null }) {
         await sleep(2600);
         if (!alive) return;
 
+        // Fishy stays for a while so the two of you can play with him.
+        setPeekLine(null);
+        setPhase('idle');
+        await sleep(randomBetween(40000, 70000));
+        if (!alive) return;
+
+        // Wait for an ongoing date to finish, linger a moment, then slide home.
+        while (alive && datingRef.current) {
+          await sleep(400);
+        }
+        if (!alive) return;
+        await sleep(4000);
+        if (!alive) return;
+
         setPhase('leave');
         setShown(false);
         await sleep(prefersReducedMotion ? 250 : 1700);
         if (!alive) return;
 
-        setPeekLine(null);
         setPhase('hidden');
       }
     };
@@ -162,23 +308,133 @@ export default function Fish({ onKnock = null }) {
     };
   }, [onKnock]);
 
-  const handleClick = () => {
-    if (!shown) return;
+  useEffect(
+    () => () => {
+      clearTimeout(waveTimer.current);
+      clearTimeout(dateTimer.current);
+      clearTimeout(cheerTimer.current);
+    },
+    [],
+  );
+
+  const cooldownSeconds = (id) => {
+    const readyAt = cooldowns?.[id] ?? 0;
+    const remaining = readyAt - now;
+    return remaining > 0 ? Math.ceil(remaining / 1000) : 0;
+  };
+
+  const burstHearts = () => setHearts((n) => n + 1);
+
+  const waveBriefly = () => {
     setWaving(true);
     clearTimeout(waveTimer.current);
     waveTimer.current = setTimeout(() => setWaving(false), 700);
   };
 
+  const handleClick = () => {
+    if (!shown || dating) return;
+    waveBriefly();
+  };
+
+  const handleAction = (item) => {
+    if (!shown || dating || !connected) return;
+    if (cooldownSeconds(item.id) > 0) return;
+
+    if (DATES.some((entry) => entry.id === item.id)) {
+      setDating(item.id);
+      datingRef.current = item.id;
+      burstHearts();
+      playSound('play');
+      clearTimeout(dateTimer.current);
+      dateTimer.current = setTimeout(() => {
+        setDating(null);
+        datingRef.current = null;
+      }, DATE_MS);
+    } else {
+      setCheer(item.id);
+      burstHearts();
+      waveBriefly();
+      playSound('hug');
+      clearTimeout(cheerTimer.current);
+      cheerTimer.current = setTimeout(() => setCheer(null), 2600);
+    }
+
+    onAction && onAction(item.id);
+  };
+
+  const dockVisible = shown && phase === 'idle' && !dating && connected;
+  const line = dating ? `fish.dateLine.${dating}` : cheer ? `fish.gestureLine.${cheer}` : peekLine;
+
   return (
     <PopIn
       $shown={shown}
       $reduce={prefersReducedMotion}
+      $date={Boolean(dating)}
       onClick={handleClick}
       role="img"
       aria-label={t('fish.name')}
     >
-      {phase === 'peek' && peekLine && <Bubble>{t(peekLine)}</Bubble>}
+      {dockVisible && (
+        <Dock onClick={(event) => event.stopPropagation()}>
+          <DockRow>
+            <DockLabel>{t('fish.gestureLabel')}</DockLabel>
+            {GESTURES.map((item) => {
+              const cooling = cooldownSeconds(item.id);
+              return (
+                <DockBtn
+                  key={item.id}
+                  type="button"
+                  disabled={cooling > 0}
+                  title={cooling > 0 ? t('care.cooldownTitle', { seconds: cooling }) : t(`fish.${item.id}`)}
+                  aria-label={cooling > 0 ? t('care.cooldownTitle', { seconds: cooling }) : t(`fish.${item.id}`)}
+                  onClick={() => handleAction(item)}
+                >
+                  <span aria-hidden="true">{item.icon}</span>
+                  {cooling > 0 && <em>{cooling}</em>}
+                </DockBtn>
+              );
+            })}
+          </DockRow>
+          <DockRow>
+            <DockLabel>{t('fish.dateLabel')}</DockLabel>
+            {DATES.map((item) => {
+              const cooling = cooldownSeconds(item.id);
+              return (
+                <DockBtn
+                  key={item.id}
+                  type="button"
+                  disabled={cooling > 0}
+                  title={cooling > 0 ? t('care.cooldownTitle', { seconds: cooling }) : t(`fish.${item.id}`)}
+                  aria-label={cooling > 0 ? t('care.cooldownTitle', { seconds: cooling }) : t(`fish.${item.id}`)}
+                  onClick={() => handleAction(item)}
+                >
+                  <span aria-hidden="true">{item.icon}</span>
+                  {cooling > 0 && <em>{cooling}</em>}
+                </DockBtn>
+              );
+            })}
+          </DockRow>
+        </Dock>
+      )}
+
+      {line && <Bubble>{t(line)}</Bubble>}
       {waving && <Wave aria-hidden="true">👋</Wave>}
+      {hearts > 0 && (
+        <Hearts key={hearts} aria-hidden="true">
+          {HEART_SPOTS.map((spot, index) => (
+            <span
+              key={index}
+              style={{
+                left: spot.left,
+                top: spot.top,
+                animationDelay: `${spot.delay}s`,
+              }}
+            >
+              💗
+            </span>
+          ))}
+        </Hearts>
+      )}
       <Figure $phase={phase} $wave={waving}>
         <svg viewBox="0 0 120 192" aria-hidden="true">
           <defs>
