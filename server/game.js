@@ -24,6 +24,17 @@ import {
   toggleNoteStudy,
   upsertNote,
 } from './notebook.js';
+import { DEFAULT_OUTFITS, isValidOutfit, sanitizeOutfits } from './outfits.js';
+import {
+  DISH_BY_ID,
+  GROCERY_BATCH,
+  TASK_BY_ID,
+  activityDoneKey,
+  activityDuration,
+  activityStartKey,
+  emptyPantry,
+  parseActivityId,
+} from './activities.js';
 
 export const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const SEAT_GRACE_MS = 5 * 60 * 1000;
@@ -268,6 +279,13 @@ export function createRoom(code, now = Date.now()) {
     lastTick: now,
     seats: { host: null, guest: null },
     stats: { fullness: 72, mood: 76, energy: 70, bond: 0 },
+    // What the pair is wearing is shared, just like the bear's stats. Either
+    // person can change either outfit and every device sees the same thing.
+    outfits: { ...DEFAULT_OUTFITS },
+    // One shared long-running chore at a time, plus the ingredients the pair
+    // has brought home from the market.
+    activity: null,
+    pantry: emptyPantry(),
     cooldowns: {},
     log: [],
     chat: [],
@@ -446,13 +464,16 @@ export function touchRoom(room, now = Date.now()) {
 
 /** Advance hunger / mood / energy. Decay pauses while nobody is online. */
 export function tickRoom(room, now = Date.now()) {
+  // A chore can finish while nobody is doing anything else, so settle it on
+  // every tick and let the caller rebroadcast the new state.
+  const settled = settleActivity(room, now);
   const hostOnline = Boolean(room.seats.host?.online);
   const guestOnline = Boolean(room.seats.guest?.online);
   const anyoneOnline = hostOnline || guestOnline;
   const elapsed = clamp((now - room.lastTick) / 1000, 0, 30);
   room.lastTick = now;
 
-  if (!anyoneOnline || elapsed <= 0) return false;
+  if (!anyoneOnline || elapsed <= 0) return settled;
 
   const stats = room.stats;
   stats.fullness = clamp(stats.fullness - 0.05 * elapsed, 0, 100);
@@ -477,11 +498,25 @@ function pushLog(room, entry) {
   return entry;
 }
 
+function applyEffects(room, effects) {
+  for (const [stat, delta] of Object.entries(effects)) {
+    if (stat === 'bond') {
+      room.stats.bond = clamp(room.stats.bond + delta, 0, 999);
+    } else {
+      room.stats[stat] = clamp(room.stats[stat] + delta, 0, 100);
+    }
+  }
+}
+
 export function performAction(room, seat, actionId, now = Date.now()) {
   const config = ACTIONS[actionId];
   const player = room.seats[seat];
   if (!config || !player || !player.online) {
     return { ok: false, error: 'invalid' };
+  }
+  // While a long chore is running the bear is busy: no instant care, no dates.
+  if (room.activity && now < room.activity.endsAt) {
+    return { ok: false, error: 'busy' };
   }
 
   const readyAt = room.cooldowns[actionId] ?? 0;
@@ -489,13 +524,7 @@ export function performAction(room, seat, actionId, now = Date.now()) {
     return { ok: false, error: 'cooldown', readyAt };
   }
 
-  for (const [stat, delta] of Object.entries(config.effects)) {
-    if (stat === 'bond') {
-      room.stats.bond = clamp(room.stats.bond + delta, 0, 999);
-    } else {
-      room.stats[stat] = clamp(room.stats[stat] + delta, 0, 100);
-    }
-  }
+  applyEffects(room, config.effects);
 
   room.cooldowns[actionId] = now + config.cooldown;
   const entry = pushLog(room, {
@@ -507,6 +536,122 @@ export function performAction(room, seat, actionId, now = Date.now()) {
   });
   room.lastActive = now;
   return { ok: true, entry };
+}
+
+/**
+ * Finish a chore whose timer has run out. Cooking and grocery runs are settled
+ * here rather than by the client, so both devices always agree on the pantry
+ * and the rewards even if one of them was closed halfway through.
+ */
+export function settleActivity(room, now = Date.now()) {
+  const activity = room.activity;
+  if (!activity || now < activity.endsAt) return false;
+  room.activity = null;
+  room.lastActive = now;
+
+  const parsed = parseActivityId(activity.id);
+  if (!parsed) return true;
+
+  if (parsed.kind === 'task') {
+    applyEffects(room, TASK_BY_ID[parsed.taskId].effects);
+  } else {
+    const dish = DISH_BY_ID[parsed.dishId];
+    if (!dish) return true;
+    if (parsed.kind === 'grocery') {
+      room.pantry = { ...emptyPantry(), ...(room.pantry ?? {}) };
+      for (const [ingredient, amount] of Object.entries(dish.needs)) {
+        room.pantry[ingredient] += amount * GROCERY_BATCH;
+      }
+    } else {
+      applyEffects(room, dish.effects);
+    }
+  }
+
+  pushLog(room, {
+    id: room.seq++,
+    at: now,
+    seat: activity.seat,
+    name: activity.name,
+    action: 'activityDone',
+    verbKey: activityDoneKey(activity.id),
+  });
+  return true;
+}
+
+/**
+ * Start a room-bound chore. Ingredients are spent at the start (so a second
+ * device cannot cook the same dish twice) and the reward arrives in
+ * settleActivity when the timer ends. `roomId` is checked against the chore's
+ * own room so a task cannot be started from the wrong part of the cabin.
+ */
+export function startActivity(room, seat, id, roomId, now = Date.now()) {
+  const player = room.seats[seat];
+  if (!player || !player.online) return { ok: false, error: 'invalid' };
+  if (room.activity && now < room.activity.endsAt) return { ok: false, error: 'busy' };
+
+  const parsed = parseActivityId(id);
+  if (!parsed) return { ok: false, error: 'invalid_activity' };
+  if (parsed.room !== roomId) return { ok: false, error: 'wrong_room' };
+
+  if (parsed.kind === 'cook') {
+    const dish = DISH_BY_ID[parsed.dishId];
+    room.pantry = { ...emptyPantry(), ...(room.pantry ?? {}) };
+    for (const [ingredient, amount] of Object.entries(dish.needs)) {
+      if ((room.pantry[ingredient] ?? 0) < amount) {
+        return { ok: false, error: 'missing_ingredients', dish: dish.id };
+      }
+    }
+    for (const [ingredient, amount] of Object.entries(dish.needs)) {
+      room.pantry[ingredient] -= amount;
+    }
+  }
+
+  room.activity = {
+    id: String(id),
+    seat,
+    name: player.name,
+    startedAt: now,
+    endsAt: now + activityDuration(id),
+  };
+  pushLog(room, {
+    id: room.seq++,
+    at: now,
+    seat,
+    name: player.name,
+    action: 'activityStart',
+    verbKey: activityStartKey(id),
+  });
+  room.lastActive = now;
+  return { ok: true, activity: room.activity };
+}
+
+/**
+ * Pick an outfit for the bear or for Fishy. This is a shared, cosmetic choice:
+ * it never touches the stats and has no cooldown, so trying on clothes stays
+ * playful. The catalog lives in server/outfits.js so a stranger cannot stuff
+ * an arbitrary string into the room state.
+ */
+export function setOutfit(room, seat, who, outfitId, now = Date.now()) {
+  const player = room.seats[seat];
+  if (!player || !player.online) return { ok: false, error: 'invalid' };
+  if (!isValidOutfit(who, outfitId)) return { ok: false, error: 'invalid_outfit' };
+
+  room.outfits = sanitizeOutfits(room.outfits);
+  if (room.outfits[who] === outfitId) return { ok: true, unchanged: true };
+
+  room.outfits[who] = outfitId;
+  pushLog(room, {
+    id: room.seq++,
+    at: now,
+    seat,
+    name: player.name,
+    action: 'outfitChange',
+    // CarePanel normally derives the verb from the action id. A wardrobe log
+    // points straight at the right line instead, so it needs no per-outfit key.
+    verbKey: `wardrobe.log.${who}`,
+  });
+  room.lastActive = now;
+  return { ok: true, changed: true };
 }
 
 /**
@@ -844,6 +989,9 @@ export function publicRoom(room, now = Date.now(), seat = null, options = {}) {
       bond: Math.round(room.stats.bond * 10) / 10,
     },
     bond: bondInfo(room.stats.bond),
+    outfits: sanitizeOutfits(room.outfits),
+    activity: room.activity ? { ...room.activity } : null,
+    pantry: { ...emptyPantry(), ...(room.pantry ?? {}) },
     cooldowns,
     log: room.log.slice(0, 16),
     chat: room.chat.slice(-50),

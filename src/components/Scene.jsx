@@ -3,6 +3,8 @@ import styled, { keyframes } from 'styled-components';
 import Bear from './Bear';
 import Fish from './Fish';
 import { RoomDecor, RoomSwitcher } from './RoomScenes';
+import WardrobePanel from './WardrobePanel';
+import ActivityPanel from './ActivityPanel';
 import { DEFAULT_ROOM } from '../utils/dateCatalog';
 import { breakpoints, palette, shadows } from '../theme';
 import { useI18n } from '../context/LanguageContext';
@@ -622,7 +624,19 @@ function moodCopy(mood) {
   return { key: 'scene.mood.sad', color: '#e8795f' };
 }
 
-export default function Scene({ room, me, bubble, reaction, onPet, connected, onFishAction, clockOffset = 0 }) {
+export default function Scene({
+  room,
+  me,
+  bubble,
+  reaction,
+  onPet,
+  connected,
+  onFishAction,
+  clockOffset = 0,
+  busy = false,
+  onChangeOutfit = null,
+  onStartActivity = null,
+}) {
   const { t } = useI18n();
   const period = useTimeOfDay();
   const mood = moodCopy(room.stats.mood);
@@ -752,7 +766,13 @@ export default function Scene({ room, me, bubble, reaction, onPet, connected, on
         )}
 
         <BearSpot>
-          <Bear stats={room.stats} reaction={reaction} onPet={onPet} disabled={!connected} />
+          <Bear
+            stats={room.stats}
+            reaction={reaction}
+            onPet={onPet}
+            disabled={!connected || busy}
+            outfitId={room.outfits?.bear}
+          />
         </BearSpot>
 
         <Fish
@@ -764,6 +784,8 @@ export default function Scene({ room, me, bubble, reaction, onPet, connected, on
           period={period}
           roomId={roomId}
           onRoomChange={setRoomId}
+          outfitId={room.outfits?.fish}
+          busy={busy}
         />
 
         <MoodNote $color={mood.color}>{t(mood.key)}</MoodNote>
@@ -771,6 +793,26 @@ export default function Scene({ room, me, bubble, reaction, onPet, connected, on
       </SceneCard>
 
       <RoomSwitcher current={roomId} period={period} onChange={setRoomId} />
+
+      {roomId === 'closet' && (
+        <WardrobePanel
+          outfits={room.outfits}
+          connected={connected}
+          busy={busy}
+          onChange={onChangeOutfit}
+        />
+      )}
+
+      <ActivityPanel
+        roomId={roomId}
+        activity={room.activity}
+        pantry={room.pantry}
+        clockOffset={clockOffset}
+        connected={connected}
+        busy={busy}
+        onStart={(id) => onStartActivity?.(id, roomId)}
+        onGoToRoom={setRoomId}
+      />
     </>
   );
 }

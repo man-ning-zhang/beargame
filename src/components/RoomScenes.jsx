@@ -462,6 +462,174 @@ function Rooftop({ night, sun, doorClass }) {
   );
 }
 
+function Closet({ light, night, sun, period, doorClass }) {
+  const hangers = [
+    { x: 224, color: '#e88a72', edge: '#c95e49', shape: 'scarf' },
+    { x: 268, color: '#f8d477', edge: '#dfa746', shape: 'coat' },
+    { x: 312, color: '#b6ddc9', edge: '#6fae97', shape: 'sweater' },
+    { x: 356, color: '#4a557d', edge: '#2b3557', shape: 'tux' },
+  ];
+  return (
+    <g>
+      <IndoorShell light={light} night={night} doorClass={doorClass} />
+      {/* wallpaper stripes */}
+      {Array.from({ length: 20 }, (_, index) => 160 + index * 32).map((x) => (
+        <line key={x} x1={x} y1="40" x2={x} y2="388" stroke="#ffffff" strokeOpacity="0.035" strokeWidth="10" />
+      ))}
+      <WindowBox x={620} y={64} w={116} h={104} period={period} night={night} sun={sun} curtain={false} />
+      {/* the big wardrobe, one door open */}
+      <rect x="176" y="86" width="252" height="308" rx="10" fill="#8c6349" stroke="#5d3f2e" strokeWidth="4" />
+      <rect x="188" y="98" width="112" height="284" rx="5" fill="#a87a58" stroke="#6b4835" strokeWidth="2" />
+      <rect x="306" y="98" width="110" height="284" rx="5" fill="#3c2c33" />
+      <rect x="312" y="104" width="98" height="272" rx="4" fill="#513b42" />
+      {/* mirror on the closed door */}
+      <rect x="198" y="116" width="92" height="228" rx="7" fill="#b9d2d8" stroke="#e9d8ba" strokeWidth="5" />
+      <path d="M206 300 L262 124 L286 124 L230 300 Z" fill="#ffffff" opacity="0.18" />
+      <circle cx="282" cy="352" r="4" fill="#f1cf8b" />
+      {/* hanging rail + four little outfits */}
+      <line x1="316" y1="130" x2="406" y2="130" stroke="#d9c8ab" strokeWidth="4" strokeLinecap="round" />
+      {hangers.map(({ x, color, edge, shape }) => (
+        <g key={x}>
+          <path d={`M${x} 130 a3 3 0 1 1 2.6 3 c0 2.4 -2.6 2.4 -2.6 5`} fill="none" stroke="#d9c8ab" strokeWidth="1.6" />
+          <path d={`M${x} 138 l-12 9 l5 6 l5 -4 l0 42 l4 0 l0 -42 l5 4 l5 -6 Z`} fill={color} stroke={edge} strokeWidth="1.4" strokeLinejoin="round" />
+          {shape === 'scarf' && <path d={`M${x - 6} 145 q6 8 12 0`} stroke={edge} strokeWidth="2" fill="none" />}
+          {shape === 'tux' && <path d={`M${x - 3} 145 L${x} 160 L${x + 3} 145 Z`} fill="#fff8ec" />}
+          {shape === 'sweater' && <path d={`M${x - 4} 142 L${x} 148 L${x + 4} 142`} stroke={edge} strokeWidth="2" fill="none" />}
+          {shape === 'coat' && <circle cx={x} cy="166" r="2" fill="#6f97c4" />}
+        </g>
+      ))}
+      {/* shoe shelf at the bottom of the wardrobe */}
+      <rect x="312" y="336" width="98" height="6" rx="2" fill="#d9c8ab" />
+      <path d="M320 336 h20 v-10 q0 -6 -6 -6 h-8 q-6 0 -6 6 Z" fill="#e88a72" />
+      <path d="M348 336 h20 v-10 q0 -6 -6 -6 h-8 q-6 0 -6 6 Z" fill="#6f97c4" />
+      {/* open rail on the right with folded clothes */}
+      <line x1="486" y1="150" x2="764" y2="150" stroke="#d9c8ab" strokeWidth="5" strokeLinecap="round" />
+      <rect x="480" y="150" width="7" height="212" rx="3" fill="#a87a58" />
+      <rect x="762" y="150" width="7" height="212" rx="3" fill="#a87a58" />
+      {[
+        [506, '#fbf0df', '#e0c9a6'], [548, '#c6d8f2', '#87a4d4'],
+        [590, '#fff7f2', '#e0c0ba'], [632, '#b6ddc9', '#6fae97'],
+        [674, '#cd7f83', '#a35f66'], [716, '#f8d477', '#dfa746'],
+      ].map(([x, fill, edge], index) => (
+        <g key={x}>
+          <path d={`M${x + 16} 150 a3 3 0 1 1 2.6 3 c0 2.4 -2.6 2.4 -2.6 5`} fill="none" stroke="#d9c8ab" strokeWidth="1.5" />
+          <rect x={x} y="158" width="32" height={index % 2 ? 52 : 44} rx="5" fill={fill} stroke={edge} strokeWidth="1.4" />
+          <line x1={x + 4} y1="166" x2={x + 28} y2="166" stroke={edge} strokeWidth="1.4" opacity="0.7" />
+        </g>
+      ))}
+      {/* shelf with folded towels and a hat box */}
+      <rect x="480" y="252" width="288" height="9" rx="3" fill="#a87a58" />
+      {[496, 542, 588].map((x, index) => (
+        <rect key={x} x={x} y={228 - index * 2} width="40" height="24" rx="4" fill={['#e5a08e', '#8fb2cf', '#f0d7a6'][index]} />
+      ))}
+      <rect x="666" y="214" width="66" height="38" rx="6" fill="#c9a8dd" stroke="#a586bd" strokeWidth="2" />
+      <path d="M666 226 h66" stroke="#a586bd" strokeWidth="2" opacity="0.6" />
+      {/* stool + rug */}
+      <ellipse cx="560" cy="452" rx="190" ry="30" fill="#c99e9c" opacity="0.38" />
+      <rect x="444" y="368" width="104" height="13" rx="6" fill="#a87a58" />
+      <rect x="452" y="381" width="9" height="52" rx="3" fill="#7a5a42" />
+      <rect x="531" y="381" width="9" height="52" rx="3" fill="#7a5a42" />
+      <path d="M452 376 q48 -14 96 0" stroke="#f1d7bb" strokeWidth="4" fill="none" opacity="0.7" />
+      {/* sparkles because trying things on is fun */}
+      {[[470, 96], [746, 196], [432, 118]].map(([cx, cy], index) => (
+        <path key={cx} className="twinkle" d={`M${cx} ${cy - 7} l2 5 l5 2 l-5 2 l-2 5 l-2 -5 l-5 -2 l5 -2 Z`} fill="#ffe6b0" style={{ animationDelay: `${index * 0.8}s` }} />
+      ))}
+    </g>
+  );
+}
+
+function Market({ night, sun, doorClass }) {
+  const produce = [
+    { x: 250, color: '#e8a45b', kind: 'round' },
+    { x: 320, color: '#d96f5c', kind: 'round' },
+    { x: 390, color: '#8fb26b', kind: 'leaf' },
+    { x: 460, color: '#f3d27f', kind: 'round' },
+    { x: 530, color: '#c47a9b', kind: 'leaf' },
+  ];
+  return (
+    <g>
+      <SkyLayer night={night} sun={sun} />
+      {/* far storefronts */}
+      <rect x="0" y="248" width="800" height="150" fill={night ? '#2c334f' : '#d8c4a7'} opacity="0.7" />
+      {/* striped awning */}
+      <path d="M0 40 H800 L770 108 H30 Z" fill="#f6ead4" />
+      {Array.from({ length: 16 }, (_, index) => index * 50).map((x, index) => (
+        <path key={x} d={`M${x} 40 H${x + 25} L${x + 23} 108 H${x + 1} Z`} fill={index % 2 ? '#e88a72' : '#f6ead4'} opacity="0.9" />
+      ))}
+      <path d="M30 108 Q400 128 770 108" stroke="#d4b894" strokeWidth="5" fill="none" />
+      {/* hanging bulbs */}
+      {[110, 230, 350, 470, 590, 710].map((x, index) => (
+        <g key={x}>
+          <line x1={x} y1="108" x2={x} y2="132" stroke="#d9c8ab" strokeWidth="1.6" />
+          <circle className="bulb" cx={x} cy="137" r="7" fill="#ffdf9b" opacity={night ? 0.95 : 0.55} style={{ animationDelay: `${index * 0.4}s` }} />
+        </g>
+      ))}
+      {/* back shelves */}
+      <rect x="176" y="212" width="572" height="16" rx="4" fill="#a87a58" />
+      <rect x="176" y="300" width="572" height="16" rx="4" fill="#a87a58" />
+      {[
+        [196, '#e9d3a8'], [242, '#c9a8dd'], [288, '#a7c7b6'], [334, '#e8a6a0'],
+        [380, '#f0d7a6'], [426, '#9fc0a8'], [472, '#d5a2a9'], [518, '#e4cf98'],
+        [564, '#8fa9c4'], [610, '#cc9a76'], [656, '#b7a2cd'], [702, '#e6b18d'],
+      ].map(([x, fill], index) => (
+        <rect key={x} x={x} y={index % 2 ? 176 : 184} width="30" height={index % 2 ? 36 : 28} rx="3" fill={fill} stroke="#8a6a4e" strokeWidth="1.4" />
+      ))}
+      {/* crates of produce */}
+      {produce.map(({ x, color, kind }) => (
+        <g key={x}>
+          <path d={`M${x - 34} 300 h68 l-7 -40 h-54 Z`} fill="#b98b60" stroke="#8a6a4e" strokeWidth="2" />
+          {kind === 'round' ? (
+            <g>
+              {[0, 1, 2].map((index) => (
+                <circle key={index} cx={x - 20 + index * 20} cy={272 - (index % 2) * 5} r="12" fill={color} />
+              ))}
+            </g>
+          ) : (
+            <g>
+              {[0, 1, 2].map((index) => (
+                <path key={index} d={`M${x - 26 + index * 20} 278 q6 -24 20 -22 q-4 18 -8 22 Z`} fill={color} />
+              ))}
+            </g>
+          )}
+        </g>
+      ))}
+      {/* little chalkboard price sign */}
+      <rect x="596" y="330" width="118" height="60" rx="6" fill="#3f5148" stroke="#a87a58" strokeWidth="5" transform="rotate(-3 655 360)" />
+      <line x1="610" y1="348" x2="698" y2="346" stroke="#f6ead4" strokeWidth="2" opacity="0.75" />
+      <line x1="610" y1="362" x2="676" y2="360" stroke="#f6ead4" strokeWidth="2" opacity="0.55" />
+      {/* floor + tiles */}
+      <rect x="0" y="392" width="800" height="108" fill={night ? '#3b3a4e' : '#c8b394'} />
+      {[0, 120, 240, 360, 480, 600, 720].map((x) => (
+        <line key={x} x1={x} y1="392" x2={x - 30} y2="500" stroke="#ffffff" strokeOpacity="0.09" strokeWidth="2" />
+      ))}
+      <line x1="0" y1="444" x2="800" y2="444" stroke="#ffffff" strokeOpacity="0.08" strokeWidth="2" />
+      {/* the door Fishy comes through */}
+      <g className={doorClass}>
+        <rect x="28" y="212" width="120" height="180" rx="6" fill="#8c6349" stroke="#5d3f2e" strokeWidth="3" />
+        <rect x="40" y="224" width="96" height="156" rx="4" fill="#a4c6cf" opacity="0.7" stroke="#5d3f2e" strokeWidth="2" />
+        <circle cx="132" cy="306" r="6" fill="#f1cf8b" stroke="#a6803f" strokeWidth="2" />
+      </g>
+      {/* shopping basket with a baguette and greens */}
+      <g>
+        <path d="M650 392 q-12 -44 12 -44 q24 0 12 44" fill="none" stroke="#b98b60" strokeWidth="5" />
+        <path d="M612 392 h96 l-10 -58 h-76 Z" fill="#c9996b" stroke="#8a6a4e" strokeWidth="3" />
+        {[626, 646, 666, 686].map((x) => (
+          <line key={x} x1={x} y1="338" x2={x + 4} y2="388" stroke="#8a6a4e" strokeWidth="2" opacity="0.55" />
+        ))}
+        <path d="M676 334 q10 -56 20 -58 q-4 34 -8 58 Z" fill="#e6bd7d" stroke="#c69a5c" strokeWidth="2" />
+        <path d="M628 334 q-16 -30 -2 -40 q10 16 12 40 Z" fill="#7fa46c" />
+        <circle cx="646" cy="326" r="12" fill="#d96f5c" />
+        <circle cx="666" cy="330" r="10" fill="#f3d27f" />
+      </g>
+      {/* a stray shopping list */}
+      <rect x="196" y="404" width="62" height="76" rx="4" fill="#fff8ec" transform="rotate(-8 227 442)" opacity="0.92" />
+      {[418, 432, 446].map((y, index) => (
+        <line key={y} x1="206" y1={y} x2={index === 2 ? 232 : 248} y2={y - 2} stroke="#c9a98a" strokeWidth="2" opacity="0.8" />
+      ))}
+    </g>
+  );
+}
+
 /* ------------------------------------------------------------------ public */
 
 /** Full-bleed illustration for the current room. Living keeps the original
@@ -497,6 +665,8 @@ export function RoomDecor({ roomId, period = 'night', knock = false }) {
       {roomId === 'garden' && <Garden night={night} sun={sun} doorClass={doorClass} />}
       {roomId === 'bedroom' && <Bedroom light={light} night={night} sun={sun} period={period} doorClass={doorClass} />}
       {roomId === 'rooftop' && <Rooftop night={night} sun={sun} doorClass={doorClass} />}
+      {roomId === 'closet' && <Closet light={light} night={night} sun={sun} period={period} doorClass={doorClass} />}
+      {roomId === 'market' && <Market night={night} sun={sun} doorClass={doorClass} />}
     </DecorSvg>
   );
 }
@@ -550,12 +720,10 @@ const BarLead = styled.div`
 
 const Chips = styled.div`
   display: flex;
+  flex: 1;
+  flex-wrap: wrap;
   gap: 6px;
   min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
-
-  &::-webkit-scrollbar { display: none; }
 `;
 
 const Chip = styled.button`

@@ -9,6 +9,7 @@ import StudyPanel from '../components/StudyPanel';
 import { useRoom } from '../context/RoomContext';
 import { useI18n } from '../context/LanguageContext';
 import { playSound } from '../utils/sound';
+import { useServerNow } from '../utils/useServerNow';
 import { breakpoints, palette, shadows } from '../theme';
 
 const fadeUp = keyframes`
@@ -218,6 +219,8 @@ export default function RoomPage() {
     connected,
     clockOffset,
     doAction,
+    changeOutfit,
+    startActivity,
     sendChat,
     makeMove,
     rematch,
@@ -234,6 +237,10 @@ export default function RoomPage() {
     toggleNoteStudy,
   } = useRoom();
   const { t } = useI18n();
+  const serverNow = useServerNow(clockOffset);
+  // The server settles a finished chore on its next tick; until then local
+  // time is the authority for whether the bear is still busy.
+  const busy = Boolean(room?.activity && serverNow < room.activity.endsAt);
 
   const [tab, setTab] = useState('chat');
   const [reaction, setReaction] = useState(null);
@@ -345,11 +352,15 @@ export default function RoomPage() {
             onFishAction={doAction}
             clockOffset={clockOffset}
             connected={connected}
+            busy={busy}
+            onChangeOutfit={changeOutfit}
+            onStartActivity={startActivity}
           />
           <CarePanel
             room={room}
             connected={connected}
             clockOffset={clockOffset}
+            busy={busy}
             onAction={doAction}
           />
         </Main>

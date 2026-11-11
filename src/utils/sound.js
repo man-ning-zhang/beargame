@@ -112,6 +112,20 @@ const SOUNDS = {
     note(context, 196, at, 0.1, { type: 'sine', volume: 0.05 });
     note(context, 146.83, at + 0.02, 0.14, { type: 'sine', volume: 0.045 });
   },
+  outfitChange: (context, at) => {
+    note(context, 659.25, at, 0.1, { type: 'triangle', volume: 0.02 });
+    note(context, 880, at + 0.07, 0.14, { type: 'sine', volume: 0.018 });
+    note(context, 987.77, at + 0.15, 0.16, { type: 'sine', volume: 0.016 });
+  },
+  activityStart: (context, at) => {
+    note(context, 392, at, 0.16, { type: 'triangle', volume: 0.022 });
+    note(context, 523.25, at + 0.09, 0.2, { type: 'triangle', volume: 0.02 });
+  },
+  activityDone: (context, at) => {
+    [523.25, 659.25, 783.99].forEach((frequency, index) => {
+      note(context, frequency, at + index * 0.08, 0.24, { type: 'sine', volume: 0.02 });
+    });
+  },
 };
 
 export function playSound(name) {

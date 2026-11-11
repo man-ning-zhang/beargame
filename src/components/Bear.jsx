@@ -3,6 +3,8 @@ import styled, { keyframes } from 'styled-components';
 import { palette } from '../theme';
 import { useI18n } from '../context/LanguageContext';
 import { DATE_CATALOG, GESTURES } from '../utils/dateCatalog';
+import { outfitFor } from '../utils/wardrobe';
+import { BearClothes } from './OutfitArt';
 
 const breathe = keyframes`
   0%, 100% { transform: scale(1) translateY(0); }
@@ -174,9 +176,10 @@ const REACTION_ICONS = {
   ...FISH_ICONS,
 };
 
-export default function Bear({ stats = {}, reaction = null, onPet = null, disabled = false }) {
+export default function Bear({ stats = {}, reaction = null, onPet = null, disabled = false, outfitId = 'cozy' }) {
   const uid = useId().replace(/:/g, '');
   const { t } = useI18n();
+  const outfit = useMemo(() => outfitFor('bear', outfitId), [outfitId]);
   const mood = stats.mood ?? 76;
   const fullness = stats.fullness ?? 72;
   const energy = stats.energy ?? 70;
@@ -284,10 +287,6 @@ export default function Bear({ stats = {}, reaction = null, onPet = null, disabl
           <stop offset="0%" stopColor="#fbe8ce" />
           <stop offset="100%" stopColor="#e8c9a6" />
         </radialGradient>
-        <linearGradient id={`scarf-${uid}`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#e88a72" />
-          <stop offset="100%" stopColor="#c95e49" />
-        </linearGradient>
       </defs>
 
       <ellipse cx="130" cy="269" rx="77" ry="12" fill="rgba(31, 18, 26, 0.2)" />
@@ -341,17 +340,7 @@ export default function Bear({ stats = {}, reaction = null, onPet = null, disabl
 
         {mouth()}
 
-        <path
-          d="M 82 178 Q 130 198 178 178 L 174 192 Q 130 213 86 192 Z"
-          fill={`url(#scarf-${uid})`}
-        />
-        <path d="M 82 178 Q 130 198 178 178" stroke="#f4b7a4" strokeWidth="3" fill="none" opacity="0.55" />
-        <g transform="translate(130 196)">
-          <path
-            d="M 0 8 C -9 -1, -15 -7, -9 -13 C -4 -18, 0 -13, 0 -10 C 0 -13, 4 -18, 9 -13 C 15 -7, 9 -1, 0 8 Z"
-            fill="#f1b94f"
-          />
-        </g>
+        <BearClothes uid={uid} outfit={outfit} />
 
         {happy && (
           <g fill="#ffe1a1" opacity="0.9">

@@ -15,6 +15,8 @@ import {
   pickRandom,
   roomForDate,
 } from '../utils/dateCatalog';
+import { outfitFor } from '../utils/wardrobe';
+import { FishClothes, FishHat } from './OutfitArt';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const randomBetween = (min, max) => Math.min(max, Math.max(min, min + Math.random() * (max - min)));
@@ -268,8 +270,11 @@ export default function Fish({
   period = 'night',
   roomId = DEFAULT_ROOM,
   onRoomChange = null,
+  outfitId = 'skater',
+  busy = false,
 }) {
   const { t } = useI18n();
+  const outfit = React.useMemo(() => outfitFor('fish', outfitId), [outfitId]);
   const [shown, setShown] = useState(false);
   const [phase, setPhase] = useState('hidden');
   const [peekLine, setPeekLine] = useState(null);
@@ -423,7 +428,7 @@ export default function Fish({
   };
 
   const handleAction = (item) => {
-    if (!shown || dating || !connected) return;
+    if (!shown || dating || !connected || busy) return;
     if (cooldownSeconds(item.id) > 0) return;
 
     if (DATE_BY_ID[item.id]) {
@@ -467,13 +472,17 @@ export default function Fish({
 
   const dockButton = (item, suggested = false) => {
     const cooling = cooldownSeconds(item.id);
-    const label = cooling > 0 ? t('care.cooldownTitle', { seconds: cooling }) : t(`fish.${item.id}`);
+    const label = busy
+      ? t('activity.busyButton')
+      : cooling > 0
+        ? t('care.cooldownTitle', { seconds: cooling })
+        : t(`fish.${item.id}`);
     return (
       <DockBtn
         key={item.id}
         type="button"
         $suggested={suggested}
-        disabled={cooling > 0}
+        disabled={cooling > 0 || busy}
         title={label}
         aria-label={suggested ? `${t('fish.suggested')} ${label}` : label}
         onClick={() => handleAction(item)}
@@ -546,18 +555,6 @@ export default function Fish({
               <stop offset="58%" stopColor="#f0915f" />
               <stop offset="100%" stopColor="#d9703f" />
             </radialGradient>
-            <linearGradient id="fishTee" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#fbf0df" />
-              <stop offset="100%" stopColor="#ecd9bf" />
-            </linearGradient>
-            <linearGradient id="fishCap" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#6f97c4" />
-              <stop offset="100%" stopColor="#4f769f" />
-            </linearGradient>
-            <linearGradient id="fishShorts" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#6f97c4" />
-              <stop offset="100%" stopColor="#456a99" />
-            </linearGradient>
             <linearGradient id="skateDeck" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#7b6cf0" />
               <stop offset="100%" stopColor="#574bc2" />
@@ -585,49 +582,8 @@ export default function Fish({
           <ellipse cx="60" cy="72" rx="30" ry="46" fill="url(#fishBody)" />
           <ellipse cx="60" cy="86" rx="18" ry="27" fill="#ffd9b8" opacity="0.5" />
 
-          {/* tee torso */}
-          <path
-            d="M41 60 L79 60 L79 114 Q60 120 41 114 Z"
-            fill="url(#fishTee)"
-            stroke="#e0c9a6"
-            strokeWidth="1.6"
-          />
-          {/* short sleeves — clearly bulge out past the shoulders */}
-          <path
-            d="M41 60 Q13 66 13 85 Q13 94 22 94 Q31 94 42 82 Z"
-            fill="url(#fishTee)"
-            stroke="#e0c9a6"
-            strokeWidth="1.6"
-          />
-          <path
-            d="M79 60 Q107 66 107 85 Q107 94 98 94 Q89 94 78 82 Z"
-            fill="url(#fishTee)"
-            stroke="#e0c9a6"
-            strokeWidth="1.6"
-          />
-          {/* crew-neck collar */}
-          <path d="M48 60 Q60 71 72 60" stroke="#d9c3a3" strokeWidth="3.5" fill="none" strokeLinecap="round" />
-          {/* hem line */}
-          <path d="M42 111 Q60 117 78 111" stroke="#e0c9a6" strokeWidth="2" fill="none" opacity="0.7" />
-          {/* little star print on the chest */}
-          <path
-            d="M60 74 l2.4 5.4 5.9 0.5 -4.5 3.9 1.4 5.8 -5.2 -3.1 -5.2 3.1 1.4 -5.8 -4.5 -3.9 5.9 -0.5 Z"
-            fill="#e8795f"
-            opacity="0.85"
-          />
-
-          {/* denim shorts */}
-          <path
-            d="M41 110 L79 110 L77 134 Q60 140 43 134 Z"
-            fill="url(#fishShorts)"
-            stroke="#3c5f8c"
-            strokeWidth="1.4"
-          />
-          {/* waistband */}
-          <rect x="40" y="108" width="40" height="8" rx="3.5" fill="#456a99" />
-          {/* center seam + pocket stitches */}
-          <path d="M60 116 L60 134" stroke="#cdddf0" strokeWidth="1.2" opacity="0.6" />
-          <path d="M48 116 L52 116 M68 116 L72 116" stroke="#cdddf0" strokeWidth="1.2" opacity="0.5" />
+          {/* the current outfit: tee / shirt, shorts / trousers, apron or bow tie */}
+          <FishClothes outfit={outfit} />
 
           {/* little fin-hands peeking from the sleeve cuffs */}
           <ellipse cx="15" cy="87" rx="7" ry="5" fill="#e88a55" transform="rotate(62 15 87)" />
@@ -646,10 +602,8 @@ export default function Fish({
             <path d="M48 58 Q60 68 72 58" stroke="#5a352d" strokeWidth="3" strokeLinecap="round" fill="none" />
           </g>
 
-          {/* backwards denim cap */}
-          <path d="M36 32 A24 24 0 0 1 84 32 Z" fill="url(#fishCap)" />
-          <rect x="16" y="28" width="18" height="9" rx="4" fill="#4f769f" />
-          <circle cx="60" cy="10" r="3" fill="#3f6286" />
+          {/* whichever hat belongs to this outfit */}
+          <FishHat hat={outfit.hat} />
         </svg>
       </Figure>
     </PopIn>

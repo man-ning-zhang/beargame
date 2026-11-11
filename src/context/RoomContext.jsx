@@ -44,6 +44,8 @@ const TOAST_KEYS = {
   note_invalid: 'note.saveFailed',
   level_invalid: 'study.levelInvalid',
   note_full: 'note.full',
+  activity_busy: 'toast.activityBusy',
+  activity_ingredients: 'toast.activityIngredients',
 };
 
 function readStorage(key) {
@@ -473,6 +475,32 @@ export function RoomProvider({ children }) {
     [sendRaw, showToast],
   );
 
+  // Outfits and long chores are room-wide, not personal, so they go through
+  // the same socket as every care action and every device sees the result.
+  const changeOutfit = useCallback(
+    (who, outfit) => {
+      if (!inRoomRef.current) return false;
+      if (!sendRaw({ type: 'outfit', who: String(who), outfit: String(outfit) })) {
+        showToast('toast.reconnecting');
+        return false;
+      }
+      return true;
+    },
+    [sendRaw, showToast],
+  );
+
+  const startActivity = useCallback(
+    (id, roomId) => {
+      if (!inRoomRef.current) return false;
+      if (!sendRaw({ type: 'activity', id: String(id), room: String(roomId) })) {
+        showToast('toast.reconnecting');
+        return false;
+      }
+      return true;
+    },
+    [sendRaw, showToast],
+  );
+
   const sendChat = useCallback(
     (text, emote = '') => {
       if (!inRoomRef.current) return false;
@@ -594,6 +622,8 @@ export function RoomProvider({ children }) {
     joinRoom,
     leave,
     doAction,
+    changeOutfit,
+    startActivity,
     sendChat,
     makeMove,
     rematch,

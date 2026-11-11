@@ -24,6 +24,9 @@ import {
   placeMark,
   publicRoom,
   requestRematch,
+  setOutfit,
+  settleActivity,
+  startActivity,
   systemChat,
   tickRoom,
   vacateSeat,
@@ -507,6 +510,9 @@ function handleMessage(ws, raw) {
   }
 
   const now = Date.now();
+  // A chore may have just finished between ticks; settle it before handling
+  // this message so the next click is never blocked by a stale timer.
+  if (settleActivity(room, now)) broadcast(room);
 
   if (msg.type === 'action') {
     if (!Object.hasOwn(ACTIONS, msg.action)) {
@@ -519,7 +525,32 @@ function handleMessage(ws, raw) {
     } else if (result.error === 'cooldown') {
       const wait = Math.max(1, Math.ceil((result.readyAt - now) / 1000));
       send(ws, { type: 'toast', code: 'action_cooldown', wait });
+    } else if (result.error === 'busy') {
+      send(ws, { type: 'toast', code: 'activity_busy' });
     }
+    return;
+  }
+
+  if (msg.type === 'activity') {
+    const result = startActivity(room, seat, String(msg.id ?? ''), String(msg.room ?? ''), now);
+    if (result.ok) {
+      broadcast(room);
+    } else {
+      const code =
+        result.error === 'busy'
+          ? 'activity_busy'
+          : result.error === 'missing_ingredients'
+            ? 'activity_ingredients'
+            : 'invalid_action';
+      send(ws, { type: 'toast', code });
+    }
+    return;
+  }
+
+  if (msg.type === 'outfit') {
+    const result = setOutfit(room, seat, String(msg.who ?? ''), String(msg.outfit ?? ''), now);
+    if (result.changed) broadcast(room);
+    else if (!result.ok) sendError(ws, 'invalid_action', '这套衣服不在衣柜里。');
     return;
   }
 

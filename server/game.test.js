@@ -18,9 +18,44 @@ import {
   placeMark,
   publicRoom,
   requestRematch,
+  setOutfit,
+  settleActivity,
+  startActivity,
   tickRoom,
   vacateSeat,
 } from './game.js';
+import {
+  DEFAULT_OUTFITS as SERVER_OUTFITS,
+  OUTFIT_IDS,
+  isValidOutfit as serverIsValidOutfit,
+} from './outfits.js';
+import {
+  DISHES as SERVER_DISHES,
+  GROCERY_BATCH,
+  GROCERY_MS,
+  INGREDIENTS,
+  ROOM_TASKS,
+  TASK_BY_ID,
+  activityDoneKey,
+  activityDuration,
+  activityStartKey,
+  emptyPantry,
+  parseActivityId,
+} from './activities.js';
+import {
+  BEAR_OUTFITS,
+  DEFAULT_OUTFITS as CLIENT_OUTFITS,
+  FISH_OUTFITS,
+  isValidOutfit as clientIsValidOutfit,
+  sanitizeOutfits,
+} from '../src/utils/wardrobe.js';
+import {
+  DISHES as CLIENT_DISHES,
+  PANTRY_ITEMS,
+  activityTitleKey,
+  dishOptions,
+  tasksForRoom,
+} from '../src/utils/activityCatalog.js';
 import {
   DATE_BEATS,
   DATE_CATALOG,
@@ -491,4 +526,154 @@ test('every new date action grows bond and respects its own cooldown', () => {
     const again = performAction(room, 'host', date.id, T0 + 2000);
     assert.equal(again.error, 'cooldown', `${date.id} should have a cooldown`);
   }
+});
+
+test('the wardrobe catalog and the server whitelist agree, with copy for every outfit', () => {
+  assert.deepEqual(OUTFIT_IDS.bear, BEAR_OUTFITS.map((outfit) => outfit.id));
+  assert.deepEqual(OUTFIT_IDS.fish, FISH_OUTFITS.map((outfit) => outfit.id));
+  assert.deepEqual(CLIENT_OUTFITS, SERVER_OUTFITS);
+
+  for (const [who, ids] of Object.entries(OUTFIT_IDS)) {
+    for (const id of ids) {
+      assert.ok(serverIsValidOutfit(who, id), `server rejects ${who}/${id}`);
+      assert.ok(clientIsValidOutfit(who, id), `client rejects ${who}/${id}`);
+    }
+  }
+  assert.equal(serverIsValidOutfit('bear', 'skater'), false);
+  assert.equal(clientIsValidOutfit('fish', 'cozy'), false);
+  assert.deepEqual(sanitizeOutfits({ bear: 'nope', fish: 'pjs' }), { bear: 'cozy', fish: 'pjs' });
+
+  const keys = ['wardrobe.log.bear', 'wardrobe.log.fish', 'wardrobe.title', 'wardrobe.sub'];
+  for (const outfit of [...BEAR_OUTFITS, ...FISH_OUTFITS]) keys.push(outfit.labelKey);
+  for (const lang of ['zh', 'en']) {
+    for (const key of keys) assert.ok(messages[lang][key], `${lang} missing ${key}`);
+  }
+});
+
+test('every dish, ingredient and chore has copy in both languages', () => {
+  const roomIds = new Set(ROOMS.map((room) => room.id));
+  assert.deepEqual([...Object.keys(ROOM_TASKS)].sort(), [...roomIds].sort());
+
+  const keys = [
+    'activity.title', 'activity.sub', 'activity.shared', 'activity.free', 'activity.idle',
+    'activity.busy', 'activity.busyButton', 'activity.almostDone', 'activity.by',
+    'activity.remaining', 'activity.elsewhere', 'activity.cookTitle', 'activity.cookHint',
+    'activity.marketTitle', 'activity.choreTitle', 'activity.choreHint', 'activity.batch',
+    'activity.buyHint', 'activity.cookButton', 'activity.groceryButton', 'activity.choreButton',
+    'activity.ready', 'activity.missing', 'activity.goMarket', 'activity.reward',
+    'activity.choreNote', 'activity.pantry', 'activity.pantryHint', 'activity.foot',
+    'activity.groceryTitle', 'activity.unknown', 'pantry.unknown',
+    'toast.activityBusy', 'toast.activityIngredients',
+    'action.outfitChange.verb', 'action.activityStart.verb', 'action.activityDone.verb',
+  ];
+
+  for (const dish of SERVER_DISHES) {
+    keys.push(`dish.${dish.id}`);
+    keys.push(activityStartKey(`cook:${dish.id}`), activityDoneKey(`cook:${dish.id}`));
+    keys.push(activityStartKey(`grocery:${dish.id}`), activityDoneKey(`grocery:${dish.id}`));
+  }
+  for (const task of Object.values(TASK_BY_ID)) {
+    keys.push(`task.${task.id}`, `activity.${task.id}.hint`);
+    keys.push(activityStartKey(task.id), activityDoneKey(task.id));
+  }
+  for (const item of PANTRY_ITEMS) keys.push(item.labelKey);
+  for (const option of [...dishOptions('cook'), ...dishOptions('grocery')]) {
+    keys.push(activityTitleKey(option.id));
+  }
+  for (const roomId of roomIds) {
+    for (const task of tasksForRoom(roomId)) keys.push(activityTitleKey(task.id), task.labelKey);
+  }
+
+  assert.deepEqual(PANTRY_ITEMS.map((item) => item.id), INGREDIENTS);
+  assert.deepEqual(CLIENT_DISHES.map((dish) => dish.id), SERVER_DISHES.map((dish) => dish.id));
+  for (const lang of ['zh', 'en']) {
+    for (const key of keys) assert.ok(messages[lang][key], `${lang} missing ${key}`);
+  }
+});
+
+test('outfits are shared state, validated, and logged with their own key', () => {
+  const { room } = roomWithPair();
+  assert.deepEqual(room.outfits, SERVER_OUTFITS);
+  assert.deepEqual(publicRoom(room, T0).outfits, SERVER_OUTFITS);
+
+  const first = setOutfit(room, 'guest', 'fish', 'chef', T0 + 1000);
+  assert.equal(first.changed, true);
+  assert.equal(publicRoom(room, T0 + 1000).outfits.fish, 'chef');
+  assert.equal(room.log[0].action, 'outfitChange');
+  assert.equal(room.log[0].verbKey, 'wardrobe.log.fish');
+
+  assert.equal(setOutfit(room, 'host', 'fish', 'chef', T0 + 2000).unchanged, true);
+  assert.deepEqual(setOutfit(room, 'host', 'fish', 'nope', T0 + 3000), { ok: false, error: 'invalid_outfit' });
+  assert.deepEqual(setOutfit(room, 'host', 'stranger', 'chef', T0 + 3000), { ok: false, error: 'invalid_outfit' });
+  assert.deepEqual(setOutfit(room, 'third', 'bear', 'knit', T0 + 3000), { ok: false, error: 'invalid' });
+
+  assert.equal(setOutfit(room, 'host', 'bear', 'knit', T0 + 4000).ok, true);
+  assert.equal(room.log[0].verbKey, 'wardrobe.log.bear');
+  assert.equal(room.stats.bond, 0, 'changing clothes never touches the stats');
+  assert.deepEqual(room.outfits, { bear: 'knit', fish: 'chef' });
+});
+
+test('a chore belongs to its room and blocks other actions while it runs', () => {
+  const { room } = roomWithPair();
+  assert.deepEqual(room.pantry, emptyPantry());
+  assert.equal(startActivity(room, 'host', 'bathTime', 'bedroom', T0 + 1000).error, 'wrong_room');
+  assert.equal(startActivity(room, 'host', 'cook:nope', 'kitchen', T0 + 1000).error, 'invalid_activity');
+  assert.equal(startActivity(room, 'third', 'tidy', 'living', T0 + 1000).error, 'invalid');
+
+  const started = startActivity(room, 'host', 'bathTime', 'bath', T0 + 1000);
+  assert.equal(started.ok, true);
+  assert.equal(room.activity.endsAt, T0 + 1000 + activityDuration('bathTime'));
+  assert.equal(room.log[0].verbKey, 'activity.bathTime.start');
+  assert.equal(publicRoom(room, T0 + 1000).activity.id, 'bathTime');
+
+  assert.equal(performAction(room, 'guest', 'pet', T0 + 2000).error, 'busy');
+  assert.equal(startActivity(room, 'guest', 'tidy', 'living', T0 + 2000).error, 'busy');
+  assert.equal(settleActivity(room, T0 + 2000), false);
+
+  assert.equal(settleActivity(room, room.activity.endsAt), true);
+  assert.equal(room.activity, null);
+  assert.equal(room.log[0].action, 'activityDone');
+  assert.equal(room.log[0].verbKey, 'activity.bathTime.done');
+  assert.ok(room.stats.energy > 70, 'the bath restores energy when it ends');
+  assert.equal(performAction(room, 'guest', 'pet', T0 + 60_000).ok, true);
+});
+
+test('tickRoom settles a finished chore even if nobody clicks', () => {
+  const { room } = roomWithPair();
+  const started = startActivity(room, 'host', 'tidy', 'living', T0);
+  assert.equal(started.ok, true);
+  assert.equal(tickRoom(room, started.activity.endsAt + 10), true);
+  assert.equal(room.activity, null);
+  assert.equal(room.log[0].verbKey, 'activity.tidy.done');
+  assert.equal(publicRoom(room, started.activity.endsAt + 20).activity, null);
+});
+
+test('a grocery run stocks the pantry and cooking spends it, then rewards the pair', () => {
+  const { room } = roomWithPair();
+  assert.equal(startActivity(room, 'host', 'cook:tomatoEgg', 'kitchen', T0 + 1000).error, 'missing_ingredients');
+  assert.equal(room.pantry.tomato, 0);
+
+  const trip = startActivity(room, 'host', 'grocery:tomatoEgg', 'market', T0 + 1000);
+  assert.equal(trip.ok, true);
+  assert.equal(room.activity.endsAt, T0 + 1000 + GROCERY_MS);
+  assert.equal(room.log[0].verbKey, 'activity.grocery.tomatoEgg.start');
+
+  assert.equal(settleActivity(room, T0 + 1000 + GROCERY_MS), true);
+  assert.equal(room.pantry.tomato, GROCERY_BATCH);
+  assert.equal(room.pantry.egg, 2 * GROCERY_BATCH);
+  assert.equal(room.log[0].verbKey, 'activity.grocery.tomatoEgg.done');
+
+  const bondBefore = room.stats.bond;
+  const cook = startActivity(room, 'guest', 'cook:tomatoEgg', 'kitchen', T0 + 1000 + GROCERY_MS);
+  assert.equal(cook.ok, true);
+  assert.equal(room.pantry.tomato, GROCERY_BATCH - 1, 'ingredients are spent when the pan heats up');
+  assert.equal(room.pantry.egg, 2 * GROCERY_BATCH - 2);
+  assert.equal(room.stats.bond, bondBefore, 'the reward waits for the timer');
+
+  assert.equal(settleActivity(room, cook.activity.endsAt), true);
+  assert.ok(room.stats.bond > bondBefore);
+  assert.equal(room.log[0].verbKey, 'activity.cook.tomatoEgg.done');
+  assert.equal(parseActivityId('cook:tomatoEgg').room, 'kitchen');
+  assert.equal(parseActivityId('grocery:tomatoEgg').room, 'market');
+  assert.equal(parseActivityId('tidy').kind, 'task');
 });

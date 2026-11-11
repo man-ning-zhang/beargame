@@ -319,7 +319,7 @@ const ActionButton = styled.button`
   }
 `;
 
-export default function CarePanel({ room, connected, clockOffset, onAction }) {
+export default function CarePanel({ room, connected, clockOffset, busy = false, onAction }) {
   const { t } = useI18n();
   const [now, setNow] = useState(() => Date.now() + clockOffset);
 
@@ -330,8 +330,13 @@ export default function CarePanel({ room, connected, clockOffset, onAction }) {
   }, [clockOffset]);
 
   const latest = room.log?.[0];
+  // Wardrobe and chore logs carry their own key (the line depends on which
+  // outfit or dish was chosen), while care logs derive it from the action id.
   const latestText = latest
-    ? t('care.log', { name: latest.name, verb: t(`action.${latest.action}.verb`) })
+    ? t('care.log', {
+        name: latest.name,
+        verb: t(latest.verbKey ?? `action.${latest.action}.verb`),
+      })
     : t('care.defaultLog');
   const stats = [
     {
@@ -443,11 +448,13 @@ export default function CarePanel({ room, connected, clockOffset, onAction }) {
               $tone={action.tone}
               $coolProgress={progress}
               onClick={() => onAction(action.id)}
-              disabled={!connected || cooling}
+              disabled={!connected || cooling || busy}
               title={
-                cooling
-                  ? t('care.cooldownTitle', { seconds: Math.ceil(remaining / 1000) })
-                  : t(action.effectKey)
+                busy
+                  ? t('activity.busyButton')
+                  : cooling
+                    ? t('care.cooldownTitle', { seconds: Math.ceil(remaining / 1000) })
+                    : t(action.effectKey)
               }
             >
               <span className="icon" aria-hidden="true">

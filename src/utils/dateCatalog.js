@@ -7,7 +7,7 @@
 export const PERIODS = ['dawn', 'morning', 'noon', 'afternoon', 'night'];
 const ALL = PERIODS;
 
-/** The six little spaces that make up the cabin. */
+/** The eight little spaces that make up the cabin. */
 export const ROOMS = [
   { id: 'living', icon: '🛋️', labelKey: 'house.living' },
   { id: 'kitchen', icon: '🍳', labelKey: 'house.kitchen' },
@@ -15,6 +15,8 @@ export const ROOMS = [
   { id: 'garden', icon: '🌷', labelKey: 'house.garden' },
   { id: 'bedroom', icon: '🛏️', labelKey: 'house.bedroom' },
   { id: 'rooftop', icon: '🌌', labelKey: 'house.rooftop' },
+  { id: 'closet', icon: '🧣', labelKey: 'house.closet' },
+  { id: 'market', icon: '🧺', labelKey: 'house.market' },
 ];
 
 export const DEFAULT_ROOM = 'living';
@@ -39,7 +41,7 @@ export const GESTURES = [
 export const DATE_CATALOG = [
   // Any time, anywhere in the cabin.
   { id: 'cook', icon: '🍳', prop: '🍲', periods: ALL, rooms: ['kitchen'] },
-  { id: 'walk', icon: '🚶', prop: '🍃', periods: ALL, rooms: ['garden', 'living'] },
+  { id: 'walk', icon: '🚶', prop: '🍃', periods: ALL, rooms: ['garden', 'living', 'market'] },
   { id: 'tv', icon: '📺', prop: '🍿', periods: ALL, rooms: ['living', 'bedroom'] },
   { id: 'sunset', icon: '🌅', prop: '🧡', periods: ['afternoon'], rooms: ['rooftop', 'garden'], signature: true },
 
@@ -69,8 +71,8 @@ export const DATE_CATALOG = [
   { id: 'stargaze', icon: '✨', prop: '🔭', periods: ['night'], rooms: ['rooftop', 'garden'], signature: true },
 
   // Rare surprises, any hour.
-  { id: 'flowers', icon: '💐', prop: '🌷', periods: ALL, rooms: ['living', 'garden', 'rooftop'], rare: true },
-  { id: 'photo', icon: '📸', prop: '🖼️', periods: ALL, rooms: ['living', 'garden', 'rooftop', 'bedroom'], rare: true },
+  { id: 'flowers', icon: '💐', prop: '🌷', periods: ALL, rooms: ['living', 'garden', 'rooftop', 'market'], rare: true },
+  { id: 'photo', icon: '📸', prop: '🖼️', periods: ALL, rooms: ['living', 'garden', 'rooftop', 'bedroom', 'closet'], rare: true },
 ];
 
 export const DATE_BY_ID = Object.fromEntries(DATE_CATALOG.map((date) => [date.id, date]));
