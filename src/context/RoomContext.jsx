@@ -162,6 +162,7 @@ export function RoomProvider({ children }) {
   const reconnectTimerRef = useRef(null);
   const aliveRef = useRef(true);
   const openSocketRef = useRef(null);
+  const lastMessageAtRef = useRef(Date.now());
 
   const showToast = useCallback((key, params = null) => {
     if (!key) return;
@@ -176,7 +177,13 @@ export function RoomProvider({ children }) {
 
   const sendRaw = useCallback((message) => {
     const socket = wsRef.current;
-    if (!socket || socket.readyState !== WebSocket.OPEN) return false;
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      // A half-open socket looks OPEN but nothing arrives and nothing sends.
+      // Mark the silence so the watchdog rebuilds the connection right away
+      // instead of waiting for its next scan.
+      lastMessageAtRef.current = 0;
+      return false;
+    }
     socket.send(JSON.stringify(message));
     return true;
   }, []);
@@ -372,7 +379,10 @@ export function RoomProvider({ children }) {
       }
     };
 
-    socket.onmessage = handleMessage;
+    socket.onmessage = (event) => {
+      lastMessageAtRef.current = Date.now();
+      handleMessage(event);
+    };
 
     socket.onclose = () => {
       if (wsRef.current === socket) wsRef.current = null;
@@ -392,6 +402,38 @@ export function RoomProvider({ children }) {
   useEffect(() => {
     openSocketRef.current = openSocket;
   }, [openSocket]);
+
+  // Watchdog for silent drops. Free-tier hosts and mobile networks can lose a
+  // socket without ever firing `close`, which leaves the page showing a stale
+  // room where every tap goes into a dead connection. The server broadcasts at
+  // least every 4 seconds while someone is in the room, so 15 seconds of
+  // silence while the tab is visible means the link is gone.
+  useEffect(() => {
+    const checkConnection = () => {
+      if (!inRoomRef.current) return;
+      if (document.visibilityState !== 'visible') return;
+      if (Date.now() - lastMessageAtRef.current < 15000) return;
+
+      lastMessageAtRef.current = Date.now();
+      const socket = wsRef.current;
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.close();
+      } else {
+        openSocketRef.current?.();
+      }
+    };
+
+    const timer = window.setInterval(checkConnection, 5000);
+    // Coming back from another app is exactly when a phone socket is most
+    // likely to be dead, so check right away instead of waiting for the scan.
+    document.addEventListener('visibilitychange', checkConnection);
+    window.addEventListener('focus', checkConnection);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', checkConnection);
+      window.removeEventListener('focus', checkConnection);
+    };
+  }, []);
 
   useEffect(() => {
     aliveRef.current = true;
